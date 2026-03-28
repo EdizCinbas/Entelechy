@@ -12,15 +12,7 @@ The backend should use this data displayed in the frontend to make trading decis
 ## Implementation Details
 The backend calculates Normalized Difference Vegetation Index (NDVI) for farm regions using the Sentinel Hub Process API. Simultaneously, a news service polls commodity headlines and computes explicit market sentiment probabilities via FinBERT classification model.
 
-The frontend integrates these streams. A 3D globe maps critical agricultural regions and local weather from the Open-Meteo API upon selection. Clicking on regions displays the satellite pictures of the top 4 relevant farms, which are used in our wheat algorithm for crop yield analysis.   
-
-[SPACE FOR SENTIMENT ANALYSIS IMAGE]
-
-[SPACE FOR NEWS FEED IMAGE]
-
-[SPACE FOR TEMPERATURE AND HUMIDITY INFORMATION IMAGE]
-
-[SPACE FOR FIELDS CROPPED SATELLITES IMAGES]
+The frontend integrates these streams. A 3D globe maps critical agricultural regions and local weather from the Open-Meteo API upon selection. Clicking on regions displays the satellite pictures of the top 4 relevant farms, which are used in our wheat algorithm for crop yield analysis.
 
 ## Data Ingestion and Transformation Pipeline
 
@@ -124,7 +116,7 @@ This systematic strategy exploits multi-year agricultural supply cycles in Kansa
 | Win Rate (monthly) | 18.7% | 45.2% |
 | Live Period | 2016–2024 | 2016–2024 |
 
-*Note: Win rate appears low due to the framework defaulting to absolute flat positions whenever the decayed monthly signal falls below a 25 percent activation threshold.*
+*Note: Win rate appears low due to the framework defaulting to holding cash whenever the decayed monthly signal falls below a 25 percent activation threshold.*
 
 ### Data Sources
 USDA NASS API data targets Kansas and North Dakota covering production, acreage, yield, and price variables from survey-derived domains. Satellite remote sensing spanned corresponding growing seasons tracking vegetation indices, soil moisture, rainfall, and Land Surface Temperature. Returns were matched against Teucrium Wheat Fund (WEAT) compounded daily prices correcting for bid-ask negative reporting conventions. 
@@ -145,5 +137,3 @@ Features are standardized via non-lookahead expanding-window z-scores and weight
 | Decay / Exit | 5-month half-life exponential decay, 25% minimum floor |
 | Backtest period | 2012–2024 (live signals from 2016) |
 | Sharpe / Drawdown | 0.626 (net) / -10.37% |
-
-*This document serves exclusively for research tracking and lacks any authority representing investment advice.*
