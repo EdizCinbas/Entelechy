@@ -214,6 +214,185 @@ function SoilMoistureSection() {
   )
 }
 
+// ── Rainfall ─────────────────────────────────────────────
+
+type RainRange = '7d' | '1m' | '1y'
+
+const RAIN_RANGE_LABELS: Record<RainRange, string> = {
+  '7d': '7 Days',
+  '1m': '1 Month',
+  '1y': '1 Year',
+}
+
+interface RainRow { date: string; rain: number }
+type RainRegionData = { rows: RainRow[]; loading: boolean }
+
+function toISO(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+function fetchRain(lat: number, lng: number, range: RainRange): Promise<RainRow[]> {
+  const today = new Date()
+  const parse = (data: { daily?: { time?: string[]; precipitation_sum?: number[] } }): RainRow[] => {
+    const dates  = data?.daily?.time              ?? []
+    const values = data?.daily?.precipitation_sum ?? []
+    return dates.map((d: string, i: number) => ({ date: d, rain: values[i] ?? 0 }))
+  }
+
+  if (range === '7d') {
+    return fetch(
+      `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${lat}&longitude=${lng}` +
+      `&daily=precipitation_sum&forecast_days=7&timezone=auto`
+    ).then(r => r.json()).then(parse)
+  }
+
+  // For month/year use the archive API (historical data up to yesterday)
+  const end = new Date(today)
+  end.setDate(end.getDate() - 1)
+  const start = new Date(today)
+  if (range === '1m') start.setMonth(start.getMonth() - 1)
+  else                start.setFullYear(start.getFullYear() - 1)
+
+  return fetch(
+    `https://archive-api.open-meteo.com/v1/archive` +
+    `?latitude=${lat}&longitude=${lng}` +
+    `&daily=precipitation_sum` +
+    `&start_date=${toISO(start)}&end_date=${toISO(end)}&timezone=auto`
+  ).then(r => r.json()).then(parse)
+}
+
+function RainSparkline({ rows, color }: { rows: RainRow[]; color: string }) {
+  const W = 72, H = 24
+  if (rows.length < 2) return <svg width={W} height={H} />
+  const vals  = rows.map(r => r.rain)
+  const max   = Math.max(...vals, 1)
+  const xS = (i: number) => (i / (rows.length - 1)) * W
+  const yS = (v: number) => H - 2 - (v / max) * (H - 4)
+  const pts  = rows.map((r, i) => `${xS(i)},${yS(r.rain)}`).join(' ')
+  const last = rows[rows.length - 1]
+  return (
+    <svg width={W} height={H} style={{ display: 'block', flexShrink: 0 }}>
+      <polygon points={`0,${H} ${pts} ${W},${H}`} fill={`${color}18`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
+      <circle cx={xS(rows.length - 1)} cy={yS(last.rain)} r={2} fill={color} />
+    </svg>
+  )
+}
+
+function RainfallSection() {
+  const [range,    setRange]    = useState<RainRange>('7d')
+  const [data,     setData]     = useState<Record<string, RainRegionData>>({})
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const load = useCallback((r: RainRange) => {
+    setData(prev => {
+      const next: Record<string, RainRegionData> = {}
+      REGIONS.forEach(reg => { next[reg.id] = { rows: prev[reg.id]?.rows ?? [], loading: true } })
+      return next
+    })
+    REGIONS.forEach(region => {
+      fetchRain(region.lat, region.lng, r)
+        .then(rows => setData(prev => ({ ...prev, [region.id]: { rows, loading: false } })))
+        .catch(()  => setData(prev => ({ ...prev, [region.id]: { rows: [], loading: false } })))
+    })
+  }, [])
+
+  useEffect(() => { load(range) }, [range, load])
+
+  const rainColor = (v: number) => v < 1 ? '#4a5568' : v < 10 ? '#74B9FF' : '#4a9eff'
+
+  // For year view, thin out labels to every ~30th point
+  const labelStride = range === '1y' ? 30 : range === '1m' ? 3 : 1
+
+  return (
+    <>
+      <div className="soil-depth-tabs" style={{ marginBottom: 6 }}>
+        {(Object.keys(RAIN_RANGE_LABELS) as RainRange[]).map(r => (
+          <button
+            key={r}
+            className={`soil-depth-tab${range === r ? ' soil-depth-tab--active' : ''}`}
+            onClick={() => setRange(r)}
+          >
+            {RAIN_RANGE_LABELS[r]}
+          </button>
+        ))}
+      </div>
+
+      <div className="soil-rows">
+        {REGIONS.map(region => {
+          const rd     = data[region.id]
+          const rows   = rd?.rows ?? []
+          const last   = rows[rows.length - 1]
+          const color  = last ? rainColor(last.rain) : '#4a5568'
+          const total  = rows.reduce((s, r) => s + r.rain, 0)
+          const isOpen = expanded === region.id
+
+          return (
+            <div
+              key={region.id}
+              className={`soil-row${isOpen ? ' soil-row--open' : ''}`}
+              onClick={() => setExpanded(isOpen ? null : region.id)}
+            >
+              <div className="soil-row__summary">
+                <div className="soil-row__label">{region.label}</div>
+                {rd?.loading && <div className="soil-row__loading">·</div>}
+                {!rd?.loading && rows.length > 0 && (
+                  <>
+                    <RainSparkline rows={rows} color={color} />
+                    <div className="soil-row__val" style={{ color }}>
+                      {total.toFixed(0)}<span className="soil-row__unit"> mm</span>
+                    </div>
+                  </>
+                )}
+                {!rd?.loading && rows.length === 0 && <div className="soil-row__loading">n/a</div>}
+                <span className="soil-row__chevron">{isOpen ? '▲' : '▼'}</span>
+              </div>
+
+              {isOpen && rows.length > 0 && (
+                <div className="soil-row__detail">
+                  <svg width="100%" viewBox="0 0 200 56" preserveAspectRatio="none" style={{ display: 'block', height: 56 }}>
+                    {(() => {
+                      const vals  = rows.map(r => r.rain)
+                      const max   = Math.max(...vals, 1)
+                      const xS = (i: number) => (i / (rows.length - 1)) * 200
+                      const yS = (v: number) => 48 - (v / max) * 42
+                      const pts = rows.map((r, i) => `${xS(i)},${yS(r.rain)}`).join(' ')
+                      return (
+                        <>
+                          <polygon points={`0,48 ${pts} 200,48`} fill={`${color}18`} />
+                          <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+                          {rows.filter((_, i) => i % Math.max(1, Math.floor(rows.length / 14)) === 0).map((r, i) => (
+                            <circle key={i} cx={xS(rows.indexOf(r))} cy={yS(r.rain)} r={2.5} fill={rainColor(r.rain)} />
+                          ))}
+                        </>
+                      )
+                    })()}
+                  </svg>
+                  <div className="soil-row__days">
+                    {rows.filter((_, i) => i % labelStride === 0).map((r, i) => (
+                      <div key={i} className="soil-row__day">
+                        <span className="soil-row__day-date">{r.date.slice(range === '1y' ? 0 : 5)}</span>
+                        <span className="soil-row__day-val" style={{ color: rainColor(r.rain) }}>{r.rain.toFixed(1)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        <div className="soil-section__legend">
+          <span style={{ color: '#4a5568' }}>● dry</span>
+          <span style={{ color: '#74B9FF' }}>● light</span>
+          <span style={{ color: '#4a9eff' }}>● heavy</span>
+          <span style={{ color: '#4a5568', marginLeft: 'auto' }}>total mm</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Drought Index (ET0) ──────────────────────────────────
 
 interface ET0Row { date: string; et0: number }
@@ -380,6 +559,10 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
 
           <Section title="Soil Moisture" accent="#4a9eff">
             <SoilMoistureSection />
+          </Section>
+
+          <Section title="Rainfall" accent="#74B9FF">
+            <RainfallSection />
           </Section>
 
           <Section title="Drought Index · ET₀" accent="#e8855a">
