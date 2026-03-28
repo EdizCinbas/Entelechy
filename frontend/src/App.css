@@ -48,58 +48,55 @@
 /* ── Globe ───────────────────────────────────────────── */
 
 .panel--globe {
-  border: none;
-  align-items: center;
-  justify-content: center;
-}
-
-.globe-placeholder {
   position: relative;
-  width: 360px;
-  height: 360px;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
-.globe-ring {
-  position: absolute;
+/* ── Popup ───────────────────────────────────────────── */
+
+.globe-popup__card {
+  background: rgba(10, 14, 20, 0.92);
+  border: 1px solid #1e3a5f;
+  border-radius: 4px;
+  padding: 10px 14px;
+  min-width: 140px;
+  pointer-events: none;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 24px rgba(74, 158, 255, 0.08), 0 4px 16px rgba(0,0,0,0.6);
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.globe-popup__title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #4a9eff;
+}
+
+.globe-popup__body {
+  font-size: 11px;
+  color: #5a7a9a;
+  margin-top: 6px;
+  /* add your region data rows here */
+}
+
+.globe-popup__dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  border: 1px solid #1e2d45;
-  animation: spin linear infinite;
-}
-
-.globe-ring--outer {
-  width: 360px;
-  height: 360px;
-  border-color: #1a2840;
-  animation-duration: 18s;
-}
-
-.globe-ring--mid {
-  width: 260px;
-  height: 260px;
-  border-color: #1e3350;
-  animation-duration: 12s;
-  animation-direction: reverse;
-}
-
-.globe-ring--inner {
-  width: 160px;
-  height: 160px;
-  border-color: #1c3d66;
-  animation-duration: 8s;
-}
-
-.globe-core {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #1a4a7a, #0a1a2e);
-  box-shadow: 0 0 40px rgba(30, 100, 180, 0.25);
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  background: #4a9eff;
+  box-shadow: 0 0 8px #4a9eff;
+  pointer-events: none;
+  z-index: 1000;
 }
