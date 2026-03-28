@@ -4,6 +4,7 @@ import Globe from 'react-globe.gl'
 import type { GlobeMethods } from 'react-globe.gl'
 import * as THREE from 'three'
 import CROP_IMAGES from '../data/cropImages'
+import StoryPanel from './story/StoryPanel'
 
 interface GlobePoint {
   id: string
@@ -133,6 +134,7 @@ export default function GlobePanel() {
 
   const [popup,       setPopup]      = useState<Popup | null>(null)
   const [cloudsOn,    setCloudsOn]   = useState(false)
+  const [showStory,    setShowStory]   = useState(false)
   const [globeReady,  setGlobeReady] = useState(false)
   const [weather,     setWeather]    = useState<WeatherData | null>(null)
   const [wxLoading,   setWxLoading]  = useState(false)
@@ -311,13 +313,21 @@ export default function GlobePanel() {
         document.body
       )}
 
-      <button
-        className="globe-clouds-btn"
-        onClick={() => setCloudsOn(v => !v)}
-        title="Toggle cloud layer"
-      >
-        {cloudsOn ? '☁ Clouds ON' : '☁ Clouds OFF'}
-      </button>
+      <div className="globe-top-btns">
+        <button
+          className="globe-clouds-btn"
+          onClick={() => setCloudsOn(v => !v)}
+          title="Toggle cloud layer"
+        >
+          {cloudsOn ? '☁ Clouds ON' : '☁ Clouds OFF'}
+        </button>
+        <button className="globe-clouds-btn" title="Story"
+          onClick={() => setShowStory(e => !e)}>
+          Story
+        </button>
+      </div>
+
+      {showStory && <StoryPanel onClose={() => setShowStory(false)} />}
     </main>
   )
 }

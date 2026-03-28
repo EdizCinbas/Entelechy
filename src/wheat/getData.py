@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 
-API_KEY = "YOUR_API_KEY"
+API_KEY = "65B5D651-484E-3C36-958B-8DC14BF7FFD9"
 BASE_URL = "https://quickstats.nass.usda.gov/api/api_GET/"
 
 COMMON_PARAMS = {
