@@ -766,31 +766,35 @@ function SimulatorChart({ modal, sim }: { modal: boolean; sim: SimulatorState })
   const iW = W - PL - PR
   const iH = H - PT - PB
 
-  // Map trades to price indices
-  const tradeMarks = sim.rows.map(trade => {
-    const entryIdx = prices.findIndex(p => p.date >= trade.entry)
-    const exitIdx = prices.findIndex(p => p.date >= trade.exit)
-    return { trade, entryIdx, exitIdx }
-  }).filter(t => t.entryIdx >= 0 && t.exitIdx >= 0)
-
-  // Calculate scales
+  // Calculate scales for price chart (use full price history)
   const priceVals = prices.map(p => p.price)
   const minPrice = Math.min(...priceVals)
   const maxPrice = Math.max(...priceVals)
   const priceRange = maxPrice - minPrice || 0.1
 
-  const xScale = (i: number) => PL + (i / (prices.length - 1)) * iW
-  const yScale = (v: number) => PT + iH - ((v - minPrice) / priceRange) * iH
+  const xPriceScale = (i: number) => PL + (i / (prices.length - 1)) * iW
+  const yPriceScale = (v: number) => PT + iH - ((v - minPrice) / priceRange) * iH
 
-  // Year ticks
+  // X-axis for portfolio: trades evenly spaced
+  const tradeCount = sim.rows.length
+  const xTradeScale = (i: number) => PL + (i / (tradeCount - 1 || 1)) * iW
+  
+  // Calculate scales for equity chart
+  const equityVals = sim.rows.map(r => [r.cumNet, r.cumBH]).flat()
+  const minEquity = Math.min(...equityVals)
+  const maxEquity = Math.max(...equityVals)
+  const equityRange = maxEquity - minEquity || 1
+  const yEquityScale = (v: number) => PT + iH - ((v - minEquity) / equityRange) * iH
+
+  // Year ticks from full price history
   const yearTicks: { year: string; x: number }[] = []
   let lastYear = ''
   prices.forEach((p, i) => {
     const yr = p.date.slice(0, 4)
-    if (yr !== lastYear) { yearTicks.push({ year: yr, x: xScale(i) }); lastYear = yr }
+    if (yr !== lastYear) { yearTicks.push({ year: yr, x: xPriceScale(i) }); lastYear = yr }
   })
 
-  // Triangles for entry/exit
+  // Triangles
   const upTri = (cx: number, cy: number) =>
     <polygon points={`${cx},${cy - 5} ${cx - 3.5},${cy + 2.5} ${cx + 3.5},${cy + 2.5}`} fill="#2ecc71" stroke="rgba(0,0,0,0.5)" strokeWidth={0.5} />
   const downTri = (cx: number, cy: number) =>
@@ -798,39 +802,86 @@ function SimulatorChart({ modal, sim }: { modal: boolean; sim: SimulatorState })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
+      {/* Price Chart with Trade Signals - Full History */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>WEAT PRICE · with trade signals</div>
+        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>WEAT PRICE · entry points</div>
         <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', flex: 1, minHeight: 0 }}>
           {/* Y-axis labels */}
           {[minPrice, (minPrice + maxPrice) / 2, maxPrice].map((v, i) => (
-            <text key={i} x={PL - 3} y={yScale(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">${v.toFixed(1)}</text>
+            <text key={i} x={PL - 3} y={yPriceScale(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">${v.toFixed(1)}</text>
           ))}
 
-          {/* Price line */}
-          <polyline points={prices.map((p, i) => `${xScale(i)},${yScale(p.price)}`).join(' ')} fill="none" stroke="#74B9FF" strokeWidth="1.5" />
+          {/* Full price line */}
+          <polyline points={prices.map((p, i) => `${xPriceScale(i)},${yPriceScale(p.price)}`).join(' ')} fill="none" stroke="#74B9FF" strokeWidth="1.5" />
 
-          {/* Trade markers */}
-          {tradeMarks.map((tm, idx) => (
-            <g key={idx}>
-              {/* Entry triangle */}
-              {upTri(xScale(tm.entryIdx), yScale(prices[tm.entryIdx].price))}
-              {/* Exit triangle */}
-              {tm.trade.direction === 'LONG' 
-                ? downTri(xScale(tm.exitIdx), yScale(prices[tm.exitIdx].price))
-                : upTri(xScale(tm.exitIdx), yScale(prices[tm.exitIdx].price))
-              }
-              {/* Trade line */}
-              <line 
-                x1={xScale(tm.entryIdx)} 
-                y1={yScale(prices[tm.entryIdx].price)} 
-                x2={xScale(tm.exitIdx)} 
-                y2={yScale(prices[tm.exitIdx].price)} 
-                stroke={tm.trade.direction === 'LONG' ? '#2ecc71' : '#e74c3c'}
-                strokeWidth="0.8"
-                opacity="0.4"
-              />
+          {/* Trade entry/exit markers - ALL trades, regardless of visibility */}
+          {sim.rows.map((trade, idx) => {
+            const entryIdx = prices.findIndex(p => p.date >= trade.entry)
+            const exitIdx = prices.findIndex(p => p.date >= trade.exit)
+            
+            if (entryIdx < 0 || exitIdx < 0) return null
+            
+            const entryX = xPriceScale(entryIdx)
+            const exitX = xPriceScale(exitIdx)
+            const entryY = yPriceScale(prices[entryIdx].price)
+            const exitY = yPriceScale(prices[exitIdx].price)
+            
+            return (
+              <g key={idx}>
+                {/* Entry triangle (green up) */}
+                {upTri(entryX, entryY)}
+                {/* Exit triangle */}
+                {trade.direction === 'LONG' 
+                  ? downTri(exitX, exitY)
+                  : upTri(exitX, exitY)
+                }
+                {/* Trade line connecting entry to exit */}
+                <line 
+                  x1={entryX} 
+                  y1={entryY} 
+                  x2={exitX} 
+                  y2={exitY} 
+                  stroke={trade.direction === 'LONG' ? '#2ecc71' : '#e74c3c'}
+                  strokeWidth="0.8"
+                  opacity="0.4"
+                />
+              </g>
+            )
+          })}
+
+          {/* X-axis */}
+          <line x1={PL} y1={PT + iH} x2={W - PR} y2={PT + iH} stroke="rgba(74, 85, 104, 0.3)" strokeWidth="1" />
+          {yearTicks.map((tick, i) => (
+            <g key={i}>
+              <line x1={tick.x} y1={PT + iH} x2={tick.x} y2={PT + iH + 3} stroke="rgba(74, 85, 104, 0.3)" strokeWidth="1" />
+              <text x={tick.x} y={PT + iH + 14} textAnchor="middle" fontSize={7} fill="#4a5568">{tick.year}</text>
             </g>
           ))}
+        </svg>
+      </div>
+
+      {/* Portfolio Equity Chart */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>PORTFOLIO EQUITY · cumulative after each trade</div>
+        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', flex: 1, minHeight: 0 }}>
+          {/* Y-axis labels */}
+          {[minEquity, (minEquity + maxEquity) / 2, maxEquity].map((v, i) => (
+            <text key={i} x={PL - 3} y={yEquityScale(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">${(v / 1000).toFixed(0)}k</text>
+          ))}
+
+          {/* Strategy line */}
+          <polyline 
+            points={sim.rows.map((r, i) => `${xTradeScale(i)},${yEquityScale(r.cumNet)}`).join(' ')} 
+            fill="none" 
+            stroke="#2ecc71" 
+            strokeWidth="1.5"
+          />
+
+          {/* Fill area under strategy */}
+          <polygon 
+            points={`${xTradeScale(0)},${PT + iH} ${sim.rows.map((r, i) => `${xTradeScale(i)},${yEquityScale(r.cumNet)}`).join(' ')} ${xTradeScale(tradeCount - 1)},${PT + iH}`} 
+            fill="rgba(46, 204, 113, 0.1)"
+          />
 
           {/* X-axis */}
           <line x1={PL} y1={PT + iH} x2={W - PR} y2={PT + iH} stroke="rgba(74, 85, 104, 0.3)" strokeWidth="1" />
@@ -845,11 +896,10 @@ function SimulatorChart({ modal, sim }: { modal: boolean; sim: SimulatorState })
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: 12, fontSize: 9, color: '#4a5568', flexShrink: 0 }}>
-        <span style={{ color: '#74B9FF' }}>─ WEAT Price</span>
-        <span style={{ color: '#2ecc71' }}>▲ Entry</span>
-        <span style={{ color: '#e74c3c' }}>▼ Exit</span>
-        <span style={{ color: '#2ecc71' }}>─ Long Trade</span>
-        <span style={{ color: '#e74c3c' }}>─ Short Trade</span>
+        <span style={{ color: '#74B9FF' }}>─ WEAT / B&H</span>
+        <span style={{ color: '#2ecc71' }}>─ Strategy</span>
+        <span style={{ color: '#2ecc71' }}>▲ Entry / Short Exit</span>
+        <span style={{ color: '#e74c3c' }}>▼ Long Exit</span>
       </div>
     </div>
   )
