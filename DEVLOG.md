@@ -23,7 +23,24 @@ The frontend integrates these streams. A 3D globe maps critical agricultural reg
 [SPACE FOR FIELDS CROPPED SATELLITES IMAGES]
 
 ## Data Ingestion and Transformation Pipeline
-The system harmonizes four separate Earth observation datasets spanning 2015 to 2024 into a unified, daily time-series model. Query construction, cloud-filtering, and dynamic band detection are handled conditionally per source.
+
+The pipeline queries the Google Earth Engine API to construct a multi-source time series dataset for US wheat regions (Kansas HRW, North Dakota HRS) over 2015–2024.
+
+**Data sources:**
+- Sentinel-2: NDVI (greenness), NDWI (water content)
+- MODIS: Land Surface Temperature 
+- SMAP: Soil moisture  
+- CHIRPS: Precipitation
+
+We use USDA CDL data to map regions containing wheat plots to find where wheat is planted for the year and filter to keep data isolated for those regions.
+
+Time series are merged and resampled to daily and weekly frequency with forward-fill for daily data to handle irregular sampling. SMAP is pre-aggregated weekly to reduce query cost.
+
+Processing is done per region-season with checkpointed outputs to ensure idempotency and fault tolerance.
+
+**Outputs:**
+- Daily panel dataset  
+- Weekly aggregated dataset (mean features, summed rainfall) optimized for modelling
 
 | Source | Resolution | Cadence | Metric Extracted |
 | :--- | :--- | :--- | :--- |
@@ -31,10 +48,6 @@ The system harmonizes four separate Earth observation datasets spanning 2015 to 
 | MODIS MOD11A1 (NASA) | 1km | Daily | Land Surface Temperature |
 | SMAP SPL4SMGP (NASA) | 9km | Variable | Soil Moisture |
 | CHIRPS (UCSB) | 5km | Daily | Precipitation |
-
-The transformation layer calculates derived spectral indices (NDVI, NDWI, EVI) and standardizes thermal units, then masks all spatial data to verified crop pixels using historically fallback-enabled USDA CDL classifications. Finally, outputs are outer-merged by date, resampled to daily frequencies, and forward-filled across five-day maximum gaps.
-
-Pipeline execution automatically checkpoints after each region-year block, preventing data loss on query timeouts. Final assembly summates rainfall and averages alternative metrics for direct futures price joining.
 
 ## Evaluation and Backtesting
 
