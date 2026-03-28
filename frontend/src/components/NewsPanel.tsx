@@ -7,6 +7,8 @@ interface Article {
 }
 
 interface NewsPanelProps {
+  activeQuery: string
+  onQueryChange: (q: string) => void
   pageSize?: number
 }
 
@@ -16,16 +18,13 @@ const SORT_OPTIONS = [
   { label: 'Relevant', value: 'relevancy' },
 ]
 
-const DEFAULT_QUERY = 'wheat supply shortage OR wheat harvest forecast OR wheat futures prices OR wheat export ban OR wheat drought yield'
-
-export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
+export default function NewsPanel({ activeQuery, onQueryChange, pageSize = 5 }: NewsPanelProps) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [sortBy, setSortBy] = useState('publishedAt')
   const [input, setInput] = useState('')
-  const [activeQuery, setActiveQuery] = useState(DEFAULT_QUERY)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -45,7 +44,7 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
 
   function handleSearch() {
     const trimmed = input.trim()
-    if (trimmed) setActiveQuery(trimmed)
+    if (trimmed) onQueryChange(trimmed)
   }
 
   const totalPages = Math.ceil(articles.length / pageSize)
