@@ -1,0 +1,37 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "kansas", "country": "USA", "share_global_export": 0.10 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-102.05, 36.99], [-94.59, 36.99], [-94.59, 40.00], [-102.05, 40.00], [-102.05, 36.99]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "ukraine", "country": "Ukraine", "share_global_export": 0.10 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[22.14, 44.39], [40.23, 44.39], [40.23, 52.38], [22.14, 52.38], [22.14, 44.39]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "india_punjab", "country": "India", "share_global_export": 0.05 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[73.88, 29.55], [76.92, 29.55], [76.92, 32.50], [73.88, 32.50], [73.88, 29.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "australia_wa", "country": "Australia", "share_global_export": 0.12 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[115.65, -35.12], [121.89, -35.12], [121.89, -28.00], [115.65, -28.00], [115.65, -35.12]]]
+      }
+    }
+  ]
+}

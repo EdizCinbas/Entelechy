@@ -1,0 +1,24 @@
+sentinel_hub:
+  instance_id: ""               # override via SH_INSTANCE_ID in .env
+  cloud_cover_threshold: 20
+  resolution: 10                # meters (Sentinel-2)
+  growing_season:
+    planting_month: 10          # October (northern hemisphere winter wheat)
+    harvest_month: 7            # July
+
+analysis:
+  ndvi_baseline_years: 10
+  min_observations_per_season: 5
+
+backtesting:
+  start_year: 2015
+  end_year: 2024
+  initial_capital: 100000
+  signal_threshold: 0.20
+  lead_weeks_before_harvest: 8
+  slippage_bps: 5
+  max_risk_per_trade: 0.02
+
+financial:
+  wheat_ticker: "ZW=F"
+  risk_free_rate: 0.04

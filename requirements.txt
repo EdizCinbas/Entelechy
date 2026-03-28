@@ -1,0 +1,7 @@
+sentinelhub>=3.9.0
+numpy>=1.26.4
+pandas>=2.2.1
+scikit-learn>=1.4.1
+yfinance>=0.2.37
+pyyaml>=6.0.1
+python-dotenv>=1.0.1
