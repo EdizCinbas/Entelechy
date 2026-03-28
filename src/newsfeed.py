@@ -1,5 +1,6 @@
 # app.py
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import os
@@ -13,6 +14,13 @@ NEWS_API_KEY = os.getenv("NEWS_API")
 
 app = FastAPI(title="Crop News API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 class NewsArticle(BaseModel):
     title: str
     description: str | None
@@ -21,7 +29,8 @@ class NewsArticle(BaseModel):
 @app.get("/api/news", response_model=list[NewsArticle])
 async def get_crop_news(
     crop: str = Query(..., description="Crop to search for, e.g., almonds or wheat"),
-    limit: int = Query(5, description="Number of articles to return")
+    limit: int = Query(5, description="Number of articles to return"),
+    sort_by: str = Query("publishedAt", description="Sort by: publishedAt, popularity, relevancy")
 ):
     """
     Fetch latest news articles for a given crop using NewsAPI.
@@ -30,8 +39,8 @@ async def get_crop_news(
     params = {
         "q": crop,
         "apiKey": NEWS_API_KEY,
+        "sortBy": sort_by,
         "pageSize": limit,
-        "sortBy": "publishedAt",
         "language": "en"
     }
     async with httpx.AsyncClient() as client:
