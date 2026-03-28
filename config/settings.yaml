@@ -22,3 +22,9 @@ backtesting:
 financial:
   wheat_ticker: "ZW=F"
   risk_free_rate: 0.04
+
+newsfeed:
+  default_query: "almond crop"
+  default_days_back: 7
+  default_max_results: 20
+  rss_feed_url: "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
