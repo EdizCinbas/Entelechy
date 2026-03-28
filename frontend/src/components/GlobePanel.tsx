@@ -143,7 +143,7 @@ export default function GlobePanel() {
       new THREE.TextureLoader().load(CLOUD_URL, (texture) => {
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(101, 64, 64),
-          new THREE.MeshLambertMaterial({ map: texture, transparent: true, opacity: 0.7, depthWrite: false })
+          new THREE.MeshLambertMaterial({ map: texture, transparent: true, opacity: 0.15, depthWrite: false })
         )
         cloudMeshRef.current = mesh
         scene.add(mesh)
