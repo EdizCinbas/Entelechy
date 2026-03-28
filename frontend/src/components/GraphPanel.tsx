@@ -528,6 +528,170 @@ function DroughtSection() {
 
 // ── Main panel ───────────────────────────────────────────
 
+// ── Sunshine Duration ────────────────────────────────────
+
+interface SunRow { date: string; hours: number }
+type SunRegionData = { rows: SunRow[]; loading: boolean }
+
+function fetchSunshine(lat: number, lng: number, range: RainRange): Promise<SunRow[]> {
+  const parse = (data: { daily?: { time?: string[]; sunshine_duration?: number[] } }): SunRow[] => {
+    const dates   = data?.daily?.time              ?? []
+    const seconds = data?.daily?.sunshine_duration ?? []
+    return dates.map((d: string, i: number) => ({ date: d, hours: (seconds[i] ?? 0) / 3600 }))
+  }
+
+  if (range === '7d') {
+    return fetch(
+      `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${lat}&longitude=${lng}` +
+      `&daily=sunshine_duration&forecast_days=7&timezone=auto`
+    ).then(r => r.json()).then(parse)
+  }
+
+  const end = new Date()
+  end.setDate(end.getDate() - 1)
+  const start = new Date()
+  if (range === '1m') start.setMonth(start.getMonth() - 1)
+  else                start.setFullYear(start.getFullYear() - 1)
+
+  return fetch(
+    `https://archive-api.open-meteo.com/v1/archive` +
+    `?latitude=${lat}&longitude=${lng}` +
+    `&daily=sunshine_duration` +
+    `&start_date=${toISO(start)}&end_date=${toISO(end)}&timezone=auto`
+  ).then(r => r.json()).then(parse)
+}
+
+function SunSparkline({ rows, color }: { rows: SunRow[]; color: string }) {
+  const W = 72, H = 24
+  if (rows.length < 2) return <svg width={W} height={H} />
+  const vals = rows.map(r => r.hours)
+  const max  = Math.max(...vals, 1)
+  const xS = (i: number) => (i / (rows.length - 1)) * W
+  const yS = (v: number) => H - 2 - (v / max) * (H - 4)
+  const pts = rows.map((r, i) => `${xS(i)},${yS(r.hours)}`).join(' ')
+  const last = rows[rows.length - 1]
+  return (
+    <svg width={W} height={H} style={{ display: 'block', flexShrink: 0 }}>
+      <polygon points={`0,${H} ${pts} ${W},${H}`} fill={`${color}18`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
+      <circle cx={xS(rows.length - 1)} cy={yS(last.hours)} r={2} fill={color} />
+    </svg>
+  )
+}
+
+function SunshineSection() {
+  const [range,    setRange]    = useState<RainRange>('7d')
+  const [data,     setData]     = useState<Record<string, SunRegionData>>({})
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const load = useCallback((r: RainRange) => {
+    setData(prev => {
+      const next: Record<string, SunRegionData> = {}
+      REGIONS.forEach(reg => { next[reg.id] = { rows: prev[reg.id]?.rows ?? [], loading: true } })
+      return next
+    })
+    REGIONS.forEach(region => {
+      fetchSunshine(region.lat, region.lng, r)
+        .then(rows => setData(prev => ({ ...prev, [region.id]: { rows, loading: false } })))
+        .catch(()  => setData(prev => ({ ...prev, [region.id]: { rows: [], loading: false } })))
+    })
+  }, [])
+
+  useEffect(() => { load(range) }, [range, load])
+
+  const sunColor = (v: number) => v < 3 ? '#4a5568' : v < 7 ? '#c8a96e' : '#f9ca24'
+  const labelStride = range === '1y' ? 30 : range === '1m' ? 3 : 1
+
+  return (
+    <>
+      <div className="soil-depth-tabs" style={{ marginBottom: 6 }}>
+        {(Object.keys(RAIN_RANGE_LABELS) as RainRange[]).map(r => (
+          <button
+            key={r}
+            className={`soil-depth-tab${range === r ? ' soil-depth-tab--active' : ''}`}
+            onClick={() => setRange(r)}
+          >
+            {RAIN_RANGE_LABELS[r]}
+          </button>
+        ))}
+      </div>
+
+      <div className="soil-rows">
+        {REGIONS.map(region => {
+          const rd     = data[region.id]
+          const rows   = rd?.rows ?? []
+          const last   = rows[rows.length - 1]
+          const color  = last ? sunColor(last.hours) : '#4a5568'
+          const isOpen = expanded === region.id
+
+          return (
+            <div
+              key={region.id}
+              className={`soil-row${isOpen ? ' soil-row--open' : ''}`}
+              onClick={() => setExpanded(isOpen ? null : region.id)}
+            >
+              <div className="soil-row__summary">
+                <div className="soil-row__label">{region.label}</div>
+                {rd?.loading && <div className="soil-row__loading">·</div>}
+                {!rd?.loading && rows.length > 0 && (
+                  <>
+                    <SunSparkline rows={rows} color={color} />
+                    <div className="soil-row__val" style={{ color }}>
+                      {last.hours.toFixed(1)}<span className="soil-row__unit"> hrs</span>
+                    </div>
+                  </>
+                )}
+                {!rd?.loading && rows.length === 0 && <div className="soil-row__loading">n/a</div>}
+                <span className="soil-row__chevron">{isOpen ? '▲' : '▼'}</span>
+              </div>
+
+              {isOpen && rows.length > 0 && (
+                <div className="soil-row__detail">
+                  <svg width="100%" viewBox="0 0 200 56" preserveAspectRatio="none" style={{ display: 'block', height: 56 }}>
+                    {(() => {
+                      const vals = rows.map(r => r.hours)
+                      const max  = Math.max(...vals, 1)
+                      const xS = (i: number) => (i / (rows.length - 1)) * 200
+                      const yS = (v: number) => 48 - (v / max) * 42
+                      const pts = rows.map((r, i) => `${xS(i)},${yS(r.hours)}`).join(' ')
+                      return (
+                        <>
+                          <polygon points={`0,48 ${pts} 200,48`} fill={`${color}18`} />
+                          <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+                          {rows.filter((_, i) => i % Math.max(1, Math.floor(rows.length / 14)) === 0).map((r, i) => (
+                            <circle key={i} cx={xS(rows.indexOf(r))} cy={yS(r.hours)} r={2.5} fill={sunColor(r.hours)} />
+                          ))}
+                        </>
+                      )
+                    })()}
+                  </svg>
+                  <div className="soil-row__days">
+                    {rows.filter((_, i) => i % labelStride === 0).map((r, i) => (
+                      <div key={i} className="soil-row__day">
+                        <span className="soil-row__day-date">{r.date.slice(range === '1y' ? 0 : 5)}</span>
+                        <span className="soil-row__day-val" style={{ color: sunColor(r.hours) }}>{r.hours.toFixed(1)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        <div className="soil-section__legend">
+          <span style={{ color: '#4a5568' }}>● cloudy</span>
+          <span style={{ color: '#c8a96e' }}>● partial</span>
+          <span style={{ color: '#f9ca24' }}>● sunny</span>
+          <span style={{ color: '#4a5568', marginLeft: 'auto' }}>hrs/day</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Main panel ───────────────────────────────────────────
+
 interface GraphPanelProps {
   activeQuery: string
   collapsed: boolean
@@ -563,6 +727,10 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
 
           <Section title="Rainfall" accent="#74B9FF">
             <RainfallSection />
+          </Section>
+
+          <Section title="Sunshine Duration" accent="#f9ca24">
+            <SunshineSection />
           </Section>
 
           <Section title="Drought Index · ET₀" accent="#e8855a">
