@@ -7,25 +7,24 @@ interface Article {
 }
 
 interface NewsPanelProps {
+  activeQuery: string
+  onQueryChange: (q: string) => void
   pageSize?: number
 }
 
 const SORT_OPTIONS = [
-  { label: 'Latest',   value: 'publishedAt' },
-  { label: 'Popular',  value: 'popularity' },
+  { label: 'Latest', value: 'publishedAt' },
+  { label: 'Popular', value: 'popularity' },
   { label: 'Relevant', value: 'relevancy' },
 ]
 
-const DEFAULT_QUERY = 'wheat supply shortage OR wheat harvest forecast OR wheat futures prices OR wheat export ban OR wheat drought yield'
-
-export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
+export default function NewsPanel({ activeQuery, onQueryChange, pageSize = 5 }: NewsPanelProps) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [sortBy, setSortBy] = useState('publishedAt')
   const [input, setInput] = useState('')
-  const [activeQuery, setActiveQuery] = useState(DEFAULT_QUERY)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -45,7 +44,7 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
 
   function handleSearch() {
     const trimmed = input.trim()
-    if (trimmed) setActiveQuery(trimmed)
+    if (trimmed) onQueryChange(trimmed)
   }
 
   const totalPages = Math.ceil(articles.length / pageSize)
@@ -84,8 +83,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
         display: 'flex',
         gap: 6,
         padding: '8px 12px',
-        borderBottom: '1px solid #1e2330',
-        background: '#0d1017',
+        borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
+        background: 'rgba(13, 16, 23, 0.2)',
       }}>
         <input
           ref={inputRef}
@@ -95,8 +94,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
           placeholder="Search commodity news…"
           style={{
             flex: 1,
-            background: '#0a0c10',
-            border: '1px solid #1e2330',
+            background: 'rgba(10, 12, 16, 0.5)',
+            border: '1px solid rgba(30, 35, 48, 0.8)',
             borderRadius: 3,
             color: '#c8d0e0',
             fontSize: 11,
@@ -140,7 +139,7 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
             style={{
               display: 'block',
               padding: '12px 16px',
-              borderBottom: '1px solid #1e2330',
+              borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
               textDecoration: 'none',
             }}
           >
@@ -163,8 +162,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 16px',
-          borderTop: '1px solid #1e2330',
-          background: '#0d1017',
+          borderTop: '1px solid rgba(30, 35, 48, 0.5)',
+          background: 'rgba(13, 16, 23, 0.3)',
         }}>
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}
