@@ -19,6 +19,7 @@ interface WeatherData {
   humidity: number | null
   wind_speed: number | null
   cloud_cover: number | null
+  sunshine_hours: number | null
 }
 
 interface FloodDay {
@@ -49,17 +50,20 @@ function fetchWeather(lat: number, lng: number): Promise<WeatherData> {
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lng}` +
     `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,cloud_cover` +
-    `&temperature_unit=fahrenheit&wind_speed_unit=mph`
+    `&daily=sunshine_duration&forecast_days=1` +
+    `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`
   )
     .then(r => r.json())
     .then(data => {
       const c = data?.current
+      const sunSeconds = data?.daily?.sunshine_duration?.[0] ?? null
       return {
-        temperature: c?.temperature_2m      ?? null,
-        feels_like:  c?.apparent_temperature ?? null,
-        humidity:    c?.relative_humidity_2m ?? null,
-        wind_speed:  c?.wind_speed_10m       ?? null,
-        cloud_cover: c?.cloud_cover          ?? null,
+        temperature:    c?.temperature_2m      ?? null,
+        feels_like:     c?.apparent_temperature ?? null,
+        humidity:       c?.relative_humidity_2m ?? null,
+        wind_speed:     c?.wind_speed_10m       ?? null,
+        cloud_cover:    c?.cloud_cover          ?? null,
+        sunshine_hours: sunSeconds !== null ? sunSeconds / 3600 : null,
       }
     })
 }
@@ -145,7 +149,7 @@ export default function GlobePanel() {
       new THREE.TextureLoader().load(CLOUD_URL, (texture) => {
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(101, 64, 64),
-          new THREE.MeshLambertMaterial({ map: texture, transparent: true, opacity: 0.7, depthWrite: false })
+          new THREE.MeshLambertMaterial({ map: texture, transparent: true, opacity: 0.15, depthWrite: false })
         )
         cloudMeshRef.current = mesh
         scene.add(mesh)
@@ -172,7 +176,7 @@ export default function GlobePanel() {
 
     fetchWeather(point.lat, point.lng)
       .then(setWeather)
-      .catch(() => setWeather({ temperature: null, feels_like: null, humidity: null, wind_speed: null, cloud_cover: null }))
+      .catch(() => setWeather({ temperature: null, feels_like: null, humidity: null, wind_speed: null, cloud_cover: null, sunshine_hours: null }))
       .finally(() => setWxLoading(false))
 
     fetchFlood(point.lat, point.lng)
@@ -263,6 +267,11 @@ export default function GlobePanel() {
                   {weather.cloud_cover !== null && (
                     <div className="globe-popup__wx-row">
                       <span>Clouds</span><span>{weather.cloud_cover}%</span>
+                    </div>
+                  )}
+                  {weather.sunshine_hours !== null && (
+                    <div className="globe-popup__wx-row">
+                      <span>Sunshine</span><span>{weather.sunshine_hours.toFixed(1)} hrs</span>
                     </div>
                   )}
                 </div>

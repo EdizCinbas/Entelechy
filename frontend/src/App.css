@@ -40,6 +40,10 @@
   width: 32px;
 }
 
+.panel--graph {
+  transition: width 0.3s ease;
+}
+
 /* Inner content column inside each panel */
 .panel__content {
   flex: 1;
@@ -440,14 +444,9 @@
 .chart-section__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
   padding: 8px 12px;
-  background: none;
-  border: none;
   border-left: 2px solid transparent;
-  cursor: pointer;
-  text-align: left;
   transition: background 0.15s;
 }
 
