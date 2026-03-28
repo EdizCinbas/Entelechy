@@ -529,8 +529,6 @@ function DroughtSection() {
   )
 }
 
-// ── Main panel ───────────────────────────────────────────
-
 // ── Sunshine Duration ────────────────────────────────────
 
 interface SunRow { date: string; hours: number }
@@ -695,228 +693,163 @@ function SunshineSection() {
 
 // ── Strategy Simulator ───────────────────────────────────
 
-interface StrategyRow {
-  date: string        // month_end
-  price: number       // weat_price
-  cumNet: number      // cum_net  (strategy equity)
-  cumBH: number       // cum_bh   (buy-and-hold equity)
-  position: number
-  trade: boolean
-  posChg: number      // pos_chg  (+ve = buy, -ve = sell)
+interface PriceRow {
+  date:  string
+  price: number
 }
 
-function parseStrategyCSV(text: string): StrategyRow[] {
+interface TradeRow {
+  entry:     string   // entry date
+  exit:      string   // exit date
+  direction: 'LONG' | 'SHORT'
+  price:     number   // weat_price at entry
+  cumNet:    number   // cum_net at exit
+  cumBH:     number   // cum_bh at exit
+  netRet:    number   // net_ret
+}
+
+function parseTradesCSV(text: string): TradeRow[] {
   const lines = text.trim().split('\n')
+  // header: year,entry,exit,direction,months,avg_pos,total_ret,best_mo,worst_mo,weat_price,signal,signal_decayed,position,net_ret,gross_ret,cum_net,cum_bh
   return lines.slice(1).map(line => {
-    const cols = line.split(',')
+    const c = line.split(',')
     return {
-      date:     cols[4],
-      price:    parseFloat(cols[3]),
-      cumNet:   parseFloat(cols[12]),
-      cumBH:    parseFloat(cols[13]),
-      position: parseFloat(cols[8]),
-      trade:    cols[15]?.trim() === 'True',
-      posChg:   parseFloat(cols[9]),
+      entry:     c[1],
+      exit:      c[2],
+      direction: c[3].trim() as 'LONG' | 'SHORT',
+      price:     parseFloat(c[9]),
+      cumNet:    parseFloat(c[15]),
+      cumBH:     parseFloat(c[16]),
+      netRet:    parseFloat(c[13]),
     }
-  }).filter(r => !isNaN(r.price) && r.date)
+  })
+  .filter(r => r.entry && !isNaN(r.price))
+  .sort((a, b) => a.exit.localeCompare(b.exit))
 }
 
-function SimulatorSection({ modal = false }: { modal?: boolean }) {
-  const [rows,      setRows]      = useState<StrategyRow[]>([])
-  const [step,      setStep]      = useState(0)
-  const [running,   setRunning]   = useState(false)
-  const [started,   setStarted]   = useState(false)
-  const [speed,     setSpeed]     = useState(300) // ms per step
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+function parsePricesCSV(text: string): PriceRow[] {
+  const lines = text.trim().split('\n')
+  // header: permno,date,ticker,comnam,prc,vol,ret,bid,ask,shrout,openprc,askhi,bidlo,year,month,day_of_week,market_cap_millions,bid_ask_spread,bid_ask_spread_pct
+  return lines.slice(1)
+    .map(line => {
+      const c = line.split(',')
+      return { date: c[1], price: parseFloat(c[4]) }
+    })
+    .filter(r => r.date && !isNaN(r.price))
+}
 
-  // Load CSV once
+interface SimulatorState {
+  rows:       TradeRow[]
+  step:       number
+  running:    boolean
+  started:    boolean
+  speed:      number
+  onRun:      () => void
+  onReset:    () => void
+  onSpeed:    (v: number) => void
+}
+
+function SimulatorChart({ modal, sim }: { modal: boolean; sim: SimulatorState }) {
+  const [prices, setPrices] = useState<PriceRow[]>([])
+
   useEffect(() => {
-    fetch('/FINAL_strategy.csv')
+    fetch('/WEAT_stock_prices.csv')
       .then(r => r.text())
-      .then(t => setRows(parseStrategyCSV(t)))
+      .then(t => setPrices(parsePricesCSV(t)))
       .catch(() => {})
   }, [])
 
-  // Animation loop
-  useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setStep(s => {
-          if (s >= rows.length - 1) {
-            setRunning(false)
-            return s
-          }
-          return s + 1
-        })
-      }, speed)
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [running, speed, rows.length])
+  if (prices.length === 0 || sim.rows.length === 0) 
+    return <div style={{ fontSize: 11, color: '#4a5568', padding: 8 }}>Loading data…</div>
 
-  function handleRun() {
-    if (!started) {
-      setStep(0)
-      setStarted(true)
-      setRunning(true)
-    } else {
-      setRunning(v => !v)
-    }
-  }
-
-  function handleReset() {
-    setRunning(false)
-    setStarted(false)
-    setStep(0)
-  }
-
-  const visible = rows.slice(0, step + 1)
-  const current = rows[step]
-
-  if (rows.length === 0) return <div style={{ fontSize: 11, color: '#4a5568', padding: 8 }}>Loading data…</div>
-
-  // SVG dimensions
-  const W = 600, H = modal ? 200 : 110, PL = 38, PB = 18, PT = 8, PR = 8
+  const W = 600, H = modal ? 200 : 110, PL = 38, PB = 22, PT = 8, PR = 8
   const iW = W - PL - PR
   const iH = H - PT - PB
-  const total = rows.length
 
-  const prices  = rows.map(r => r.price)
-  const nets    = rows.map(r => r.cumNet)
-  const bhs     = rows.map(r => r.cumBH)
-  const minP = Math.min(...prices),    maxP = Math.max(...prices)
-  const minE = Math.min(...nets, ...bhs), maxE = Math.max(...nets, ...bhs)
+  // Map trades to price indices
+  const tradeMarks = sim.rows.map(trade => {
+    const entryIdx = prices.findIndex(p => p.date >= trade.entry)
+    const exitIdx = prices.findIndex(p => p.date >= trade.exit)
+    return { trade, entryIdx, exitIdx }
+  }).filter(t => t.entryIdx >= 0 && t.exitIdx >= 0)
 
-  const xS  = (i: number) => PL + (i / (total - 1)) * iW
-  const yP  = (v: number) => PT + iH - ((v - minP) / (maxP - minP || 1)) * iH
-  const yE  = (v: number) => PT + iH - ((v - minE) / (maxE - minE || 1)) * iH
+  // Calculate scales
+  const priceVals = prices.map(p => p.price)
+  const minPrice = Math.min(...priceVals)
+  const maxPrice = Math.max(...priceVals)
+  const priceRange = maxPrice - minPrice || 0.1
 
-  const pricePts = visible.map(r => `${xS(rows.indexOf(r))},${yP(r.price)}`).join(' ')
-  const netPts   = visible.map(r => `${xS(rows.indexOf(r))},${yE(r.cumNet)}`).join(' ')
-  const bhPts    = visible.map(r => `${xS(rows.indexOf(r))},${yE(r.cumBH)}`).join(' ')
+  const xScale = (i: number) => PL + (i / (prices.length - 1)) * iW
+  const yScale = (v: number) => PT + iH - ((v - minPrice) / priceRange) * iH
 
-  // Trades within visible window
-  const trades = visible.filter(r => r.trade && r.posChg !== 0)
+  // Year ticks
+  const yearTicks: { year: string; x: number }[] = []
+  let lastYear = ''
+  prices.forEach((p, i) => {
+    const yr = p.date.slice(0, 4)
+    if (yr !== lastYear) { yearTicks.push({ year: yr, x: xScale(i) }); lastYear = yr }
+  })
 
-  // Y-axis labels
-  const priceLabels = [minP, maxP]
-  const equityLabels = [minE, maxE]
+  // Triangles for entry/exit
+  const upTri = (cx: number, cy: number) =>
+    <polygon points={`${cx},${cy - 5} ${cx - 3.5},${cy + 2.5} ${cx + 3.5},${cy + 2.5}`} fill="#2ecc71" stroke="rgba(0,0,0,0.5)" strokeWidth={0.5} />
+  const downTri = (cx: number, cy: number) =>
+    <polygon points={`${cx},${cy + 5} ${cx - 3.5},${cy - 2.5} ${cx + 3.5},${cy - 2.5}`} fill="#e74c3c" stroke="rgba(0,0,0,0.5)" strokeWidth={0.5} />
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: modal ? '100%' : 'auto', gap: 6, padding: '0 4px 4px' }}>
-
-      {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <button
-          onClick={handleRun}
-          style={{
-            background: running ? '#1a2540' : '#0f3460',
-            border: `1px solid ${running ? '#4a9eff' : '#2ecc71'}`,
-            color: running ? '#4a9eff' : '#2ecc71',
-            borderRadius: 3, padding: '4px 14px', fontSize: 11,
-            cursor: 'pointer', letterSpacing: '0.06em', fontWeight: 600,
-          }}
-        >
-          {!started ? 'Run Simulator' : running ? '⏸ Pause' : '▶ Resume'}
-        </button>
-        {started && (
-          <button
-            onClick={handleReset}
-            style={{
-              background: 'none', border: '1px solid #2a3348',
-              color: '#4a5568', borderRadius: 3, padding: '4px 10px',
-              fontSize: 11, cursor: 'pointer',
-            }}
-          >
-            Reset
-          </button>
-        )}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10, color: '#4a5568' }}>Speed</span>
-          <input
-            type="range" min={50} max={800} step={50}
-            value={800 - speed + 50}
-            onChange={e => setSpeed(800 - parseInt(e.target.value) + 50)}
-            style={{ width: 60, accentColor: '#4a9eff' }}
-          />
-        </div>
-      </div>
-
-      {/* Date + stats */}
-      <div style={{ display: 'flex', gap: 12, fontSize: 10, flexShrink: 0, minHeight: 16 }}>
-        {started && current && (
-          <>
-            <span style={{ color: '#4a5568' }}>{current.date}</span>
-            <span style={{ color: '#c8d0e0' }}>WEAT <span style={{ color: '#f9ca24' }}>${current.price.toFixed(2)}</span></span>
-            <span style={{ color: '#c8d0e0' }}>Strategy <span style={{ color: '#2ecc71' }}>${current.cumNet.toFixed(0)}</span></span>
-            <span style={{ color: '#c8d0e0' }}>B&H <span style={{ color: '#74B9FF' }}>${current.cumBH.toFixed(0)}</span></span>
-            {current.trade && current.posChg !== 0 && (
-              <span style={{ color: current.posChg > 0 ? '#2ecc71' : '#e74c3c', fontWeight: 700 }}>
-                {current.posChg > 0 ? '▲ BUY' : '▼ SELL'}
-              </span>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Price chart */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>WEAT PRICE</div>
+        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>WEAT PRICE · with trade signals</div>
         <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', flex: 1, minHeight: 0 }}>
-          {priceLabels.map((v, i) => (
-            <text key={i} x={PL - 3} y={yP(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">{v.toFixed(1)}</text>
+          {/* Y-axis labels */}
+          {[minPrice, (minPrice + maxPrice) / 2, maxPrice].map((v, i) => (
+            <text key={i} x={PL - 3} y={yScale(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">${v.toFixed(1)}</text>
           ))}
-          <polyline points={rows.map((r, i) => `${xS(i)},${yP(r.price)}`).join(' ')} fill="none" stroke="#1e2330" strokeWidth="1" />
-          {visible.length > 1 && (
-            <>
-              <polygon points={`${xS(0)},${PT + iH} ${pricePts} ${xS(step)},${PT + iH}`} fill="rgba(249,202,36,0.07)" />
-              <polyline points={pricePts} fill="none" stroke="#f9ca24" strokeWidth="1.5" strokeLinejoin="round" />
-            </>
-          )}
-          {trades.map((r, i) => {
-            const cx = xS(rows.indexOf(r)), cy = yP(r.price)
-            return r.posChg > 0
-              ? <polygon key={i} points={`${cx},${cy - 4} ${cx - 3},${cy + 2} ${cx + 3},${cy + 2}`} fill="#2ecc71" stroke="rgba(0,0,0,0.4)" strokeWidth={0.5} />
-              : <polygon key={i} points={`${cx},${cy + 4} ${cx - 3},${cy - 2} ${cx + 3},${cy - 2}`} fill="#e74c3c" stroke="rgba(0,0,0,0.4)" strokeWidth={0.5} />
-          })}
-          {started && <line x1={xS(step)} y1={PT} x2={xS(step)} y2={PT + iH} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />}
-        </svg>
-      </div>
 
-      {/* Equity chart */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ fontSize: 9, color: '#4a5568', letterSpacing: '0.08em', marginBottom: 2, flexShrink: 0 }}>PORTFOLIO EQUITY</div>
-        <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', flex: 1, minHeight: 0 }}>
-          {equityLabels.map((v, i) => (
-            <text key={i} x={PL - 3} y={yE(v) + 3} textAnchor="end" fontSize={7} fill="#4a5568">${(v / 1000).toFixed(0)}k</text>
+          {/* Price line */}
+          <polyline points={prices.map((p, i) => `${xScale(i)},${yScale(p.price)}`).join(' ')} fill="none" stroke="#74B9FF" strokeWidth="1.5" />
+
+          {/* Trade markers */}
+          {tradeMarks.map((tm, idx) => (
+            <g key={idx}>
+              {/* Entry triangle */}
+              {upTri(xScale(tm.entryIdx), yScale(prices[tm.entryIdx].price))}
+              {/* Exit triangle */}
+              {tm.trade.direction === 'LONG' 
+                ? downTri(xScale(tm.exitIdx), yScale(prices[tm.exitIdx].price))
+                : upTri(xScale(tm.exitIdx), yScale(prices[tm.exitIdx].price))
+              }
+              {/* Trade line */}
+              <line 
+                x1={xScale(tm.entryIdx)} 
+                y1={yScale(prices[tm.entryIdx].price)} 
+                x2={xScale(tm.exitIdx)} 
+                y2={yScale(prices[tm.exitIdx].price)} 
+                stroke={tm.trade.direction === 'LONG' ? '#2ecc71' : '#e74c3c'}
+                strokeWidth="0.8"
+                opacity="0.4"
+              />
+            </g>
           ))}
-          <polyline points={rows.map((r, i) => `${xS(i)},${yE(r.cumBH)}`).join(' ')} fill="none" stroke="#1e2330" strokeWidth="1" />
-          <polyline points={rows.map((r, i) => `${xS(i)},${yE(r.cumNet)}`).join(' ')} fill="none" stroke="#1e2330" strokeWidth="1" />
-          {visible.length > 1 && (
-            <>
-              <polyline points={bhPts} fill="none" stroke="#74B9FF" strokeWidth="1.2" strokeLinejoin="round" strokeDasharray="3 2" />
-              <polygon points={`${xS(0)},${PT + iH} ${netPts} ${xS(step)},${PT + iH}`} fill="rgba(46,204,113,0.07)" />
-              <polyline points={netPts} fill="none" stroke="#2ecc71" strokeWidth="1.5" strokeLinejoin="round" />
-            </>
-          )}
-          {trades.map((r, i) => {
-            const cx = xS(rows.indexOf(r)), cy = yE(r.cumNet)
-            return r.posChg > 0
-              ? <polygon key={i} points={`${cx},${cy - 4} ${cx - 3},${cy + 2} ${cx + 3},${cy + 2}`} fill="#2ecc71" stroke="rgba(0,0,0,0.4)" strokeWidth={0.5} />
-              : <polygon key={i} points={`${cx},${cy + 4} ${cx - 3},${cy - 2} ${cx + 3},${cy - 2}`} fill="#e74c3c" stroke="rgba(0,0,0,0.4)" strokeWidth={0.5} />
-          })}
-          {started && <line x1={xS(step)} y1={PT} x2={xS(step)} y2={PT + iH} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />}
+
+          {/* X-axis */}
+          <line x1={PL} y1={PT + iH} x2={W - PR} y2={PT + iH} stroke="rgba(74, 85, 104, 0.3)" strokeWidth="1" />
+          {yearTicks.map((tick, i) => (
+            <g key={i}>
+              <line x1={tick.x} y1={PT + iH} x2={tick.x} y2={PT + iH + 3} stroke="rgba(74, 85, 104, 0.3)" strokeWidth="1" />
+              <text x={tick.x} y={PT + iH + 14} textAnchor="middle" fontSize={7} fill="#4a5568">{tick.year}</text>
+            </g>
+          ))}
         </svg>
       </div>
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: 12, fontSize: 9, color: '#4a5568', flexShrink: 0 }}>
-        <span style={{ color: '#f9ca24' }}>─ WEAT</span>
-        <span style={{ color: '#2ecc71' }}>─ Strategy</span>
-        <span style={{ color: '#74B9FF' }}>╌ Buy & Hold</span>
-        <span style={{ color: '#2ecc71' }}>▲ Buy</span>
-        <span style={{ color: '#e74c3c' }}>▼ Sell</span>
+        <span style={{ color: '#74B9FF' }}>─ WEAT Price</span>
+        <span style={{ color: '#2ecc71' }}>▲ Entry</span>
+        <span style={{ color: '#e74c3c' }}>▼ Exit</span>
+        <span style={{ color: '#2ecc71' }}>─ Long Trade</span>
+        <span style={{ color: '#e74c3c' }}>─ Short Trade</span>
       </div>
     </div>
   )
@@ -935,6 +868,49 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState<string | null>(null)
   const [expanded,  setExpanded]  = useState(false)
+
+  // ── Simulator state (shared between inline + modal) ──
+  const [simRows,    setSimRows]    = useState<TradeRow[]>([])
+  const [simStep,    setSimStep]    = useState(0)
+  const [simRunning, setSimRunning] = useState(false)
+  const [simStarted, setSimStarted] = useState(false)
+  const [simSpeed,   setSimSpeed]   = useState(300)
+  const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    fetch('/FINAL_trades.csv')
+      .then(r => r.text())
+      .then(t => setSimRows(parseTradesCSV(t)))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (simRunning) {
+      simIntervalRef.current = setInterval(() => {
+        setSimStep(s => {
+          if (s >= simRows.length - 1) { setSimRunning(false); return s }
+          return s + 1
+        })
+      }, simSpeed)
+    } else {
+      if (simIntervalRef.current) clearInterval(simIntervalRef.current)
+    }
+    return () => { if (simIntervalRef.current) clearInterval(simIntervalRef.current) }
+  }, [simRunning, simSpeed, simRows.length])
+
+  const simState: SimulatorState = {
+    rows:    simRows,
+    step:    simStep,
+    running: simRunning,
+    started: simStarted,
+    speed:   simSpeed,
+    onRun:   () => {
+      if (!simStarted) { setSimStep(0); setSimStarted(true); setSimRunning(true) }
+      else setSimRunning(v => !v)
+    },
+    onReset: () => { setSimRunning(false); setSimStarted(false); setSimStep(0) },
+    onSpeed: (v) => setSimSpeed(v),
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -972,7 +948,7 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
               </button>
             }
           >
-            <SimulatorSection />
+            <SimulatorChart modal={false} sim={simState} />
           </Section>
 
           <Section title="Soil Moisture" accent="#4a9eff">
@@ -1080,7 +1056,7 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
             </div>
             {/* Modal body — full-size simulator */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '12px 16px' }}>
-              <SimulatorSection modal />
+              <SimulatorChart modal={true} sim={simState} />
             </div>
           </div>
         </div>,
