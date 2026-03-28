@@ -184,35 +184,35 @@ async def get_crop_news(
     """
     Fetch latest news articles for a given crop using NewsAPI.
     """
-    # url = "https://newsapi.org/v2/everything"
-    # params = {
-    #     "q": crop,
-    #     "apiKey": NEWS_API_KEY,
-    #     "sortBy": sort_by,
-    #     "pageSize": limit,
-    #     "language": "en"
-    # }
-    # async with httpx.AsyncClient(timeout=20.0) as client:
-    #     resp = await client.get(url, params=params)
-    #     data = resp.json()
+    url = "https://newsapi.org/v2/everything"
+    params = {
+        "q": crop,
+        "apiKey": NEWS_API_KEY,
+        "sortBy": sort_by,
+        "pageSize": limit,
+        "language": "en"
+    }
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.get(url, params=params)
+        data = resp.json()
 
-    # articles = data.get("articles", [])
-    # tmp = [
-    #     NewsArticle(
-    #         title=a.get("title", ""),
-    #         description=a.get("description"),
-    #         url=a.get("url"),
-    #     )
-    #     for a in articles
-    # ]
+    articles = data.get("articles", [])
     tmp = [
         NewsArticle(
             title=a.get("title", ""),
             description=a.get("description"),
             url=a.get("url"),
         )
-        for a in backup_data
+        for a in articles
     ]
+    # tmp = [
+    #     NewsArticle(
+    #         title=a.get("title", ""),
+    #         description=a.get("description"),
+    #         url=a.get("url"),
+    #     )
+    #     for a in backup_data
+    # ]
     # return tmp if len(tmp) > 0 else backup_data
     
     return tmp
