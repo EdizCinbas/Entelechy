@@ -27,10 +27,14 @@ The frontend integrates these streams. A 3D globe maps critical agricultural reg
 The pipeline queries the Google Earth Engine API to construct a multi-source time series dataset for US wheat regions (Kansas HRW, North Dakota HRS) over 2015–2024.
 
 **Data sources:**
+- USDA NASS (KS + ND): production, yield, acreage, price received
 - Sentinel-2: NDVI (greenness), NDWI (water content)
 - MODIS: Land Surface Temperature 
 - SMAP: Soil moisture  
 - CHIRPS: Precipitation
+- WRDS (WEAT price data)
+
+Firstly, we use data from the USDA National Agricultural Statistics Service (NASS) QuickStats API, focusing on U.S. wheat fundamentals. The data that we pull is only published yearly, hence we use it in combination with the satellite image data (detailed below).
 
 We use USDA CDL data to map regions containing wheat plots to find where wheat is planted for the year and filter to keep data isolated for those regions.
 
@@ -50,6 +54,61 @@ Processing is done per region-season with checkpointed outputs to ensure idempot
 | CHIRPS (UCSB) | 5km | Daily | Precipitation |
 
 ## Evaluation and Backtesting
+
+### 1. Feature Engineering & Alignment
+- **USDA:**
+  - Lag features (t-2, t-3) to capture delayed supply effects
+- **Satellite:**
+  - Derive vegetation indices
+  - Smooth noise (e.g. weekly soil moisture)
+  - Apply crop masking (CDL)
+- **Alignment:**
+  - Unified into a consistent time series
+  - Resampled from daily → monthly/annual views
+
+### . Data Correlation
+- Correlate features at different lags to the price of WEAT
+- Uses only historical data (no lookahead bias)
+
+### 4. Core Signal (USDA-Driven, Annual)
+- Correlation-weighted composite:
+  - Lagged price → bearish
+  - Lagged yield → bullish
+- Normalised to [-1, 1]
+
+### 5. Temporal Extrapolation via Satellite Data
+- Fit higher-frequency satellite features to the annual USDA signal:
+  - USDA signal = strong but sparse (published annually)
+  - Satellite data = weaker but higher frequency and correlated
+- Extrapolate signal intra-year
+- Produces a monthly tradable signal
+
+### 6. Regime Adjustment
+- Gated using YoY momentum (WEAT):
+  - Agreement: full signal
+  - Conflict: reduced exposure 
+
+### 7. Decay, Thresholding & Execution
+- Exponential decay (half-life ≈ 5 months)
+- 25% threshold:
+  - Go flat below noise floor
+- Final output:
+  - Monthly position sizing in [-1, 1]
+
+### 8: Backtest
+- Trade the WEAT ETF from 2015 to 2024 (some features are heavily lagged, hence starting later than 2012 when the data begins)
+
+### Notes on Robust Pipeline Infrastructure
+- Handles heterogeneous satellite data:
+  - Different resolutions, cadences, schema drift
+- Includes:
+  - Cloud filtering
+  - Dynamic band handling
+  - Checkpointed ingestion
+- Outputs:
+  - Model-ready feature tables for forecasting and trading
+- Reaslistic Backtest:
+  - No data leakage or lookahead bias involved
 
 ### WEAT Wheat Signal Strategy
 This systematic strategy exploits multi-year agricultural supply cycles in Kansas and North Dakota applying USDA supply statistics and satellite remote sensing. Evaluated over a 2016-2024 test window, the final strategy delivered a 0.626 Sharpe ratio against a severely negative buy-and-hold benchmark.
@@ -74,14 +133,6 @@ USDA NASS API data targets Kansas and North Dakota covering production, acreage,
 Signal generation isolates significant lag relationships. High farm prices at 2-year and 3-year lags typically generate acreage expansion and eventual supply gluts, whereas high yields at a 2-year lag signal persistent agronomic strength. 
 
 Features are standardized via non-lookahead expanding-window z-scores and weighted by absolute Pearson correlation strength. This raw structural signal is gated by a regime filter halving position sizes whenever direct WEAT price momentum conflicts with the fundamental thesis. Because USDA structural figures age throughout the operational year, the monthly position strength decays exponentially at a 5-month half-life ending automatically at a 25 percent minimum-participation threshold to minimize flat-market transaction drag.
-
-### Satellite and Experimental Adjustments
-Lag-zero satellite testing established peak growing-season maximum Land Surface Temperature as statistically significant for predicting same-year returns without lookahead bias. However, mechanically blending this metric into the late-year core structural strategy ultimately degraded advantage ratios due to limited sample depth.
-
-Extensive cross-validated alternate modeling employing Ridge OLS, Kalman Ensembles, and Random Forests underperformed the baseline regime filter due to the severe sample constraints of the 9-year record. Volatility scaling delivered strictly flat results, proving simple multiplicative operations unable to artificially engineer higher information ratios.
-
-### Implementation and Constraints
-Execution requires simple month-end rebalancing mapping continuous fractional positions directly tied to signal strength. Transaction costs model at ten basis points per interaction against heavily liquid WEAT volumes yielding functionally zero execution risk. The paramount limitation rests upon the abbreviated 9-year verification sample forcing wide confidence intervals and neglecting the impact of primary global producers like Russia and Australia. Upgraded strategies would incorporate quarter-century standard CBOT futures timelines and broader international production vectors.
 
 ### Final Specification Summary
 
