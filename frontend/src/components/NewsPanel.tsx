@@ -22,17 +22,19 @@ const SORT_OPTIONS = [
 
 export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onToggle, pageSize = 5 }: NewsPanelProps) {
   const [articles, setArticles] = useState<Article[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
-  const [page, setPage]         = useState(0)
-  const [sortBy, setSortBy]     = useState('publishedAt')
-  const [input, setInput]       = useState('')
-  const inputRef                = useRef<HTMLInputElement>(null)
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState<string | null>(null)
+  const [page,     setPage]     = useState(0)
+  const [sortBy,   setSortBy]   = useState('publishedAt')
+  const [input,    setInput]    = useState('')
+  const [expanded, setExpanded] = useState<number | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
     setPage(0)
+    setExpanded(null)
     const q = encodeURIComponent(activeQuery)
     fetch(`http://localhost:8000/api/news?crop=${q}&limit=30&sort_by=${sortBy}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
@@ -52,13 +54,14 @@ export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onTog
   return (
     <aside className={`panel panel--news${collapsed ? ' panel--collapsed' : ''}`}>
 
-      {/* Collapse strip — left (inner) edge; order: -1 via CSS puts it first */}
+      {/* Collapse strip — left edge */}
       <div className="panel__collapse-strip" onClick={onToggle} title={collapsed ? 'Expand' : 'Collapse'}>
         {collapsed ? '‹' : '›'}
       </div>
 
-      {/* Inner content — hidden when collapsed (overflow: hidden on panel) */}
       <div className="panel__content">
+
+        {/* Header */}
         <div className="panel__header">
           <span className="panel__title">News Feed</span>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -70,11 +73,8 @@ export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onTog
                   background: sortBy === opt.value ? '#1a2540' : 'none',
                   border: `1px solid ${sortBy === opt.value ? '#4a9eff' : '#1e2330'}`,
                   color: sortBy === opt.value ? '#4a9eff' : '#4a5568',
-                  borderRadius: 3,
-                  padding: '2px 8px',
-                  fontSize: 10,
-                  cursor: 'pointer',
-                  letterSpacing: '0.05em',
+                  borderRadius: 3, padding: '2px 8px', fontSize: 10,
+                  cursor: 'pointer', letterSpacing: '0.05em',
                 }}
               >
                 {opt.label}
@@ -83,13 +83,11 @@ export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onTog
           </div>
         </div>
 
+        {/* Search bar */}
         <div style={{
-          display: 'flex',
-          gap: 6,
-          padding: '8px 12px',
+          display: 'flex', gap: 6, padding: '8px 12px',
           borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
-          background: 'rgba(13, 16, 23, 0.2)',
-          flexShrink: 0,
+          background: 'rgba(13, 16, 23, 0.2)', flexShrink: 0,
         }}>
           <input
             ref={inputRef}
@@ -98,54 +96,81 @@ export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onTog
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
             placeholder="Search commodity news…"
             style={{
-              flex: 1,
-              background: 'rgba(10, 12, 16, 0.5)',
-              border: '1px solid rgba(30, 35, 48, 0.8)',
-              borderRadius: 3,
-              color: '#c8d0e0',
-              fontSize: 11,
-              padding: '5px 10px',
-              outline: 'none',
+              flex: 1, background: 'rgba(10, 12, 16, 0.5)',
+              border: '1px solid rgba(30, 35, 48, 0.8)', borderRadius: 3,
+              color: '#c8d0e0', fontSize: 11, padding: '5px 10px', outline: 'none',
             }}
           />
           <button
             onClick={handleSearch}
             style={{
-              background: '#1a2540',
-              border: '1px solid #4a9eff',
-              color: '#4a9eff',
-              borderRadius: 3,
-              padding: '4px 12px',
-              fontSize: 11,
-              cursor: 'pointer',
+              background: '#1a2540', border: '1px solid #4a9eff',
+              color: '#4a9eff', borderRadius: 3, padding: '4px 12px',
+              fontSize: 11, cursor: 'pointer',
             }}
           >
             Go
           </button>
         </div>
 
+        {/* Articles */}
         <div className="panel__body" style={{ flex: 1, overflowY: 'auto', padding: 0 }}>
           {loading && <p style={{ color: '#4a5568', fontSize: 12, textAlign: 'center', padding: 16 }}>Loading…</p>}
           {error   && <p style={{ color: '#e05',    fontSize: 12, textAlign: 'center', padding: 16 }}>Error: {error}</p>}
           {!loading && !error && visible.length === 0 && (
             <p style={{ color: '#4a5568', fontSize: 12, textAlign: 'center', padding: 16 }}>No results.</p>
           )}
-          {!loading && !error && visible.map((a, i) => (
-            <a
-              key={i}
-              href={a.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ display: 'block', padding: '12px 16px', borderBottom: '1px solid rgba(30, 35, 48, 0.5)', textDecoration: 'none' }}
-            >
-              <div style={{ fontSize: 12, color: '#c8d0e0', lineHeight: 1.4, marginBottom: 4 }}>{a.title}</div>
-              {a.description && (
-                <div style={{ fontSize: 11, color: '#4a5568', lineHeight: 1.4 }}>{a.description}</div>
-              )}
-            </a>
-          ))}
+          {!loading && !error && visible.map((a, i) => {
+            const globalIdx = page * pageSize + i
+            const isOpen    = expanded === globalIdx
+            return (
+              <div
+                key={i}
+                onClick={() => setExpanded(isOpen ? null : globalIdx)}
+                style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
+                  cursor: 'pointer',
+                  background: isOpen ? 'rgba(74, 158, 255, 0.04)' : 'transparent',
+                  transition: 'background 0.15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <div style={{ fontSize: 12, color: '#c8d0e0', lineHeight: 1.4, flex: 1 }}>
+                    {a.title}
+                  </div>
+                  <span style={{ color: '#2a4060', fontSize: 10, flexShrink: 0, marginTop: 2 }}>
+                    {isOpen ? '▲' : '▼'}
+                  </span>
+                </div>
+
+                {isOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    {a.description && (
+                      <div style={{ fontSize: 11, color: '#7a9abf', lineHeight: 1.5, marginBottom: 8 }}>
+                        {a.description}
+                      </div>
+                    )}
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        fontSize: 10, color: '#4a9eff', textDecoration: 'none',
+                        letterSpacing: '0.05em', fontWeight: 600,
+                      }}
+                    >
+                      Read more →
+                    </a>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
 
+        {/* Pagination */}
         {!loading && !error && totalPages > 1 && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -175,8 +200,8 @@ export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onTog
             >Next ›</button>
           </div>
         )}
-      </div>
 
+      </div>
     </aside>
   )
 }
