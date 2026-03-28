@@ -11,8 +11,8 @@ interface NewsPanelProps {
 }
 
 const SORT_OPTIONS = [
-  { label: 'Latest',   value: 'publishedAt' },
-  { label: 'Popular',  value: 'popularity' },
+  { label: 'Latest', value: 'publishedAt' },
+  { label: 'Popular', value: 'popularity' },
   { label: 'Relevant', value: 'relevancy' },
 ]
 
@@ -84,8 +84,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
         display: 'flex',
         gap: 6,
         padding: '8px 12px',
-        borderBottom: '1px solid #1e2330',
-        background: '#0d1017',
+        borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
+        background: 'rgba(13, 16, 23, 0.2)',
       }}>
         <input
           ref={inputRef}
@@ -95,8 +95,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
           placeholder="Search commodity news…"
           style={{
             flex: 1,
-            background: '#0a0c10',
-            border: '1px solid #1e2330',
+            background: 'rgba(10, 12, 16, 0.5)',
+            border: '1px solid rgba(30, 35, 48, 0.8)',
             borderRadius: 3,
             color: '#c8d0e0',
             fontSize: 11,
@@ -140,7 +140,7 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
             style={{
               display: 'block',
               padding: '12px 16px',
-              borderBottom: '1px solid #1e2330',
+              borderBottom: '1px solid rgba(30, 35, 48, 0.5)',
               textDecoration: 'none',
             }}
           >
@@ -163,8 +163,8 @@ export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 16px',
-          borderTop: '1px solid #1e2330',
-          background: '#0d1017',
+          borderTop: '1px solid rgba(30, 35, 48, 0.5)',
+          background: 'rgba(13, 16, 23, 0.3)',
         }}>
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}

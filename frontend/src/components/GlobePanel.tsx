@@ -59,7 +59,7 @@ export default function GlobePanel() {
     <main ref={containerRef} className="panel--globe" onMouseMove={handleMouseMove}>
       <Globe
         ref={globeRef}
-        backgroundColor="#0a0c10"
+        backgroundColor="rgba(0,0,0,0)"
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
         pointsData={POINTS}
         pointLat="lat"

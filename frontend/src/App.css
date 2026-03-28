@@ -7,23 +7,38 @@
   overflow: hidden;
 }
 
+.dashboard>* {
+  grid-row: 1;
+  /* Put all elements in the same row */
+}
+
 /* ── Panels ──────────────────────────────────────────── */
 
 .panel {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #1e2330;
+  background: rgba(10, 12, 16, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(30, 35, 48, 0.5);
+  z-index: 10;
+  /* Bring above globe */
+}
+
+.panel--graph {
+  grid-column: 1;
 }
 
 .panel--news {
+  grid-column: 3;
   border-right: none;
-  border-left: 1px solid #1e2330;
+  border-left: 1px solid rgba(30, 35, 48, 0.5);
 }
 
 .panel__header {
   padding: 12px 16px;
-  border-bottom: 1px solid #1e2330;
-  background: #0d1017;
+  border-bottom: 1px solid rgba(30, 35, 48, 0.5);
+  background: rgba(13, 16, 23, 0.4);
 }
 
 .panel__title {
@@ -48,12 +63,15 @@
 /* ── Globe ───────────────────────────────────────────── */
 
 .panel--globe {
+  grid-column: 1 / -1;
+  /* Span entire background */
   position: relative;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  z-index: 0;
 }
 
 /* ── Popup ───────────────────────────────────────────── */
@@ -67,13 +85,18 @@
   pointer-events: none;
   z-index: 1000;
   backdrop-filter: blur(8px);
-  box-shadow: 0 0 24px rgba(74, 158, 255, 0.08), 0 4px 16px rgba(0,0,0,0.6);
+  box-shadow: 0 0 24px rgba(74, 158, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.6);
   animation: fade-in 0.15s ease-out;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .globe-popup__title {
