@@ -1,0 +1,14 @@
+tried on purely z-scores from yearly data (yield, produce):
+    pure_zscore_signal.png
+see price + original correlations here: weat_price_with_corr.png
+
+tried trading just on the satellite data: pure_satellite_weekly.png
+lots of noise so tried kalman filter: kalman_ensemble.png
+
+
+see lags + correlations:
+    satellite_lag_heatmap.png
+    satellite_lag_scatters.png
+
+
+Final: FINAL_strategy.png
