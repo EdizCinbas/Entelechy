@@ -28,7 +28,10 @@ def score_headlines(titles: list[str]) -> dict:
         inputs = _tokenizer(title, return_tensors="pt", truncation=True, max_length=512)
         with torch.no_grad():
             logits = _model(**inputs).logits
-        pos, _, neg = torch.softmax(logits, dim=-1).squeeze().tolist()
+        probs = torch.softmax(logits, dim=-1).squeeze().tolist()
+        label_order = [v.lower() for v in _model.config.id2label.values()]
+        pos = probs[label_order.index('positive')]
+        neg = probs[label_order.index('negative')]
         scores.append(pos - neg)
 
     avg = sum(scores) / len(scores) if scores else 0

@@ -73,9 +73,22 @@ export default function GraphPanel({ activeQuery }: { activeQuery: string }) {
                 </span>
               </div>
 
-              {/* score bar */}
-              <div style={{ height: 4, background: 'rgba(30,35,48,0.8)', borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: colour, borderRadius: 2, transition: 'width 0.4s ease' }} />
+              {/* score bar — centre = 0, left = negative, right = positive */}
+              <div style={{ height: 4, background: 'rgba(30,35,48,0.8)', borderRadius: 2, marginBottom: 8, position: 'relative' }}>
+                {/* centre marker */}
+                <div style={{ position: 'absolute', left: '50%', top: 0, width: 1, height: '100%', background: 'rgba(255,255,255,0.15)' }} />
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  height: '100%',
+                  width: `${pct / 2}%`,
+                  ...(sentiment.score >= 0
+                    ? { left: '50%' }
+                    : { right: '50%' }),
+                  background: colour,
+                  borderRadius: 2,
+                  transition: 'width 0.4s ease',
+                }} />
               </div>
 
               <div style={{ fontSize: 10, color: '#4a5568' }}>
