@@ -1,18 +1,18 @@
 # Entelechy Development Log
 
-## Project and Code Content
-Entelechy is an analytical dashboard and data engine mapping agricultural data. The main idea was to use satellite imagery to predict crop yields, but we have extended it with all sorts of agriculture relevant data.
+## Project Overview
+Entelechy is an analytical dashboard and data engine for agricultural data. The main idea was to use satellite imagery to predict crop yields, but we have extended it with all sorts of agriculture relevant data. The project is a baseline for building commodity algorithms, and we have made a wheat algorithm using the engine as demonstration of its use case, with almost 170% return.
 
-The stack is a Python backend with a React frontend to deliver environmental analysis alongside quantitative metrics. The backend executes geospatial imagery extraction, article sentiment scoring, and uses that in algorithmic strategies that return well above the buy and hold benchmark. 
+The stack is a Python backend with a React frontend to deliver environmental analysis. The backend executes geospatial imagery extraction, news sentiment scoring, and uses that in algorithmic strategies that return well above the buy and hold benchmark. 
 
-The React and TypeScript frontend renders information visually such as satellite imagery, dynamic graphs, news and sentiment feeds, weather and flood data; which can be used in algorithms for commodities. 
+The React and TypeScript frontend renders information visually such as satellite imagery, dynamic graphs, news and sentiment feeds, weather and flood data. The frontend is not meant to be used for trading, it is just to demonstrate the different data sources, as well as display the trading algorithm we made.
 
-There is a successful wheat algorithm implementation we created using this engine, but it can be extended to any commodity using this engine. 
+The backend should use this data displayed in the frontend to make trading decisions. Due to API limits we have only written a wheat algorithm, but given its massive success, the other data seen in the frontend such as for almonds or corn can be used to do the same thing.
 
 ## Implementation Details
-The backend requests and calculates Normalized Difference Vegetation Index (NDVI) timeseries for farm regions using the Sentinel Hub Process API. Simultaneously, a news service polls commodity headlines and computes explicit market sentiment probabilities via FinBERT classification model.
+The backend calculates Normalized Difference Vegetation Index (NDVI) for farm regions using the Sentinel Hub Process API. Simultaneously, a news service polls commodity headlines and computes explicit market sentiment probabilities via FinBERT classification model.
 
-The frontend integrates these streams. A 3D globe maps critical agricultural regions and local weather from the Open-Meteo API upon selection. Clicking on regions displays the satellite information, which are used in our wheat algorithm for crop yield analysis.   
+The frontend integrates these streams. A 3D globe maps critical agricultural regions and local weather from the Open-Meteo API upon selection. Clicking on regions displays the satellite pictures of the top 4 relevant farms, which are used in our wheat algorithm for crop yield analysis.   
 
 [SPACE FOR SENTIMENT ANALYSIS IMAGE]
 
