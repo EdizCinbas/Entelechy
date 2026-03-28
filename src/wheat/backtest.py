@@ -184,6 +184,11 @@ trades_df = pd.DataFrame([{
     "worst_mo":  round(min(t["rets"]), 4),
 } for t in trades]).sort_values("total_ret", ascending=False)
 
+strategy_at_entry = monthly[["month_end", "weat_price", "signal", "signal_decayed",
+                              "position", "net_ret", "gross_ret", "cum_net", "cum_bh"]].rename(
+    columns={"month_end": "entry"})
+trades_df = trades_df.merge(strategy_at_entry, on="entry", how="left")
+
 print(f"\n{SEP}")
 print(f"  TRADE LOG  (sorted best → worst)")
 print(SEP)
