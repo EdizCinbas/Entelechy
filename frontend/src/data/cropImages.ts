@@ -4,70 +4,72 @@ export interface CropImage {
 }
 
 /**
- * Builds a NASA GIBS WMS URL for a lat/lng bounding box.
- * Returns a JPEG image served directly — no API key required.
- * MODIS Terra True Color is updated daily at 250m resolution.
- * Docs: https://nasa-gibs.github.io/gibs-api-docs/access-basics/#wms
+ * NASA GIBS WMS — no API key required, MODIS True Color, 250 m resolution.
+ * Omitting TIME returns the most recent available image (1–3 day latency).
+ *
+ * Resolution note: MODIS is 250 m/px. For production field-level detail,
+ * switch to Sentinel Hub (10 m Sentinel-2, free tier, needs OAuth2 + backend).
+ *
+ * Padding is applied relative to each field's bbox so smaller fields are
+ * zoomed out enough to avoid blank tile edges.
  */
-function gibs(west: number, south: number, east: number, north: number, date: string): string {
+// MODIS has ~3 day processing latency — use 4 days ago to guarantee data exists
+function recentDate(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 4)
+  return d.toISOString().slice(0, 10)
+}
+
+const DATE = recentDate()
+
+function gibs(west: number, south: number, east: number, north: number): string {
+  // 40% padding — keeps even the smallest fields away from tile edges
+  const dLon = (east - west)   * 0.4
+  const dLat = (north - south) * 0.4
+  const w = (west  - dLon).toFixed(5)
+  const s = (south - dLat).toFixed(5)
+  const e = (east  + dLon).toFixed(5)
+  const n = (north + dLat).toFixed(5)
   return (
     'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi' +
     '?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0' +
     '&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor' +
-    `&CRS=CRS:84&BBOX=${west},${south},${east},${north}` +
-    '&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg' +
-    `&TIME=${date}`
+    `&CRS=CRS:84&BBOX=${w},${s},${e},${n}` +
+    `&WIDTH=512&HEIGHT=512&FORMAT=image/jpeg&TIME=${DATE}`
   )
 }
 
-/**
- * Satellite crop images per region ID.
- * Each entry's `src` is a live GIBS WMS URL — images load directly in <img>.
- * To update imagery date, change the date string (YYYY-MM-DD).
- * Dates are chosen for peak crop visibility in each region.
- */
+// Coords from almond_fields_2024.csv / wheat_fields_2024.csv (now deleted)
 const CROP_IMAGES: Record<string, CropImage[]> = {
   california: [
-    // Central Valley almond orchards near Fresno (peak leaf-out, July)
-    { crop: 'Almonds',    src: gibs(-121.0, 36.5, -119.5, 37.5, '2024-07-15') },
-    // San Joaquin Valley tomatoes & wheat (mid-summer)
-    { crop: 'Tomatoes',   src: gibs(-121.5, 37.5, -120.0, 38.5, '2024-07-15') },
-    // Sacramento Valley rice (flooded fields visible, July)
-    { crop: 'Rice',       src: gibs(-122.0, 38.5, -120.5, 39.5, '2024-07-15') },
-    // Coachella Valley grapes & citrus (southern end)
-    { crop: 'Grapes',     src: gibs(-116.5, 33.5, -115.5, 34.0, '2024-07-15') },
+    // CA_Almond_01 — 25,376 ha near Modesto
+    { crop: 'Almonds · 25k ha', src: gibs(-120.9295, 37.5000, -120.4998, 37.6438) },
+    // CA_Almond_02 — 17,580 ha
+    { crop: 'Almonds · 17k ha', src: gibs(-120.4657, 37.0001, -120.1410, 37.1570) },
+    // CA_Almond_03 — 15,716 ha near Fresno
+    { crop: 'Almonds · 16k ha', src: gibs(-119.5001, 35.5000, -119.2959, 35.6888) },
+    // CA_Almond_04 — 14,097 ha
+    { crop: 'Almonds · 14k ha', src: gibs(-119.3389, 35.5001, -119.2081, 35.7613) },
   ],
   kansas: [
-    // Western Kansas wheat belt near Dodge City (just before harvest, June)
-    { crop: 'Winter Wheat', src: gibs(-101.0, 37.5, -99.5, 38.5, '2024-06-15') },
-    // Central Kansas sorghum (summer growth, August)
-    { crop: 'Sorghum',      src: gibs(-98.5, 37.5, -97.0, 38.5, '2024-08-01') },
-    // Eastern Kansas corn (peak canopy, July)
-    { crop: 'Corn',         src: gibs(-96.5, 38.0, -95.0, 39.0, '2024-07-15') },
+    // Kansas_HRW_000001 — 6,732 ha
+    { crop: 'HRW Wheat · 6.7k ha', src: gibs(-98.5245, 37.5076, -98.3368, 37.5944) },
+    // Kansas_HRW_000002 — 5,142 ha
+    { crop: 'HRW Wheat · 5.1k ha', src: gibs(-97.8443, 37.5028, -97.6982, 37.5884) },
+    // Kansas_HRW_000003 — 4,323 ha
+    { crop: 'HRW Wheat · 4.3k ha', src: gibs(-98.2270, 37.9485, -98.0690, 38.0238) },
+    // Kansas_HRW_000004 — 4,247 ha
+    { crop: 'HRW Wheat · 4.2k ha', src: gibs(-98.9322, 37.5093, -98.7934, 37.6159) },
   ],
-  ukraine: [
-    // Kherson Oblast wheat (southern Ukraine, June harvest)
-    { crop: 'Wheat',      src: gibs(32.0, 46.5, 34.5, 48.0, '2024-06-15') },
-    // Dnipropetrovsk sunflowers (mid-summer, July)
-    { crop: 'Sunflowers', src: gibs(34.0, 47.5, 36.0, 49.0, '2024-07-15') },
-    // Poltava corn (central Ukraine, August)
-    { crop: 'Corn',       src: gibs(33.0, 49.0, 35.0, 50.5, '2024-08-01') },
-  ],
-  india: [
-    // Punjab wheat (pre-harvest, March — fields still green)
-    { crop: 'Wheat',      src: gibs(74.0, 30.0, 76.0, 32.0, '2024-03-01') },
-    // Andhra Pradesh rice (second crop, October)
-    { crop: 'Rice',       src: gibs(79.5, 15.5, 81.5, 17.0, '2024-10-01') },
-    // Maharashtra sugar cane (winter, December)
-    { crop: 'Sugar Cane', src: gibs(74.5, 17.0, 76.5, 18.5, '2024-12-01') },
-  ],
-  australia: [
-    // WA wheat belt near Merredin (spring growth, October)
-    { crop: 'Wheat',  src: gibs(117.5, -32.0, 119.5, -30.5, '2024-10-15') },
-    // NSW cotton near Narrabri (summer, January)
-    { crop: 'Cotton', src: gibs(149.5, -30.5, 151.0, -29.5, '2024-01-15') },
-    // SA barley (Eyre Peninsula, October)
-    { crop: 'Barley', src: gibs(135.0, -33.5, 136.5, -32.0, '2024-10-15') },
+  northdakota: [
+    // NorthDakota_HRS_000001 — 4,292 ha
+    { crop: 'HRS Wheat · 4.3k ha', src: gibs(-100.8405, 48.6762, -100.7096, 48.8003) },
+    // NorthDakota_HRS_000002 — 4,217 ha
+    { crop: 'HRS Wheat · 4.2k ha', src: gibs(-99.1110, 48.6589, -98.9344, 48.7691) },
+    // NorthDakota_HRS_000003 — 3,849 ha
+    { crop: 'HRS Wheat · 3.8k ha', src: gibs(-98.9706, 48.6522, -98.8399, 48.7505) },
+    // NorthDakota_HRS_000004 — 3,494 ha
+    { crop: 'HRS Wheat · 3.5k ha', src: gibs(-100.9292, 48.9372, -100.7219, 48.9998) },
   ],
 }
 

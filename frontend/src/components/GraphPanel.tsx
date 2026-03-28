@@ -23,11 +23,9 @@ interface Region {
 }
 
 const REGIONS: Region[] = [
-  { id: 'california', label: 'California', lat: 36.7,  lng: -119.4 },
-  { id: 'kansas',     label: 'Kansas',     lat: 38.5,  lng: -98.0  },
-  { id: 'ukraine',    label: 'Ukraine',    lat: 49.0,  lng: 32.0   },
-  { id: 'india',      label: 'India',      lat: 20.0,  lng: 78.9   },
-  { id: 'australia',  label: 'Australia',  lat: -25.0, lng: 133.0  },
+  { id: 'california',  label: 'California',  lat: 36.5, lng: -119.9 },
+  { id: 'kansas',      label: 'Kansas',      lat: 37.7, lng: -98.3  },
+  { id: 'northdakota', label: 'N. Dakota',   lat: 48.8, lng: -99.9  },
 ]
 
 type Depth = '0_to_1cm' | '1_to_3cm' | '3_to_9cm' | '9_to_27cm'

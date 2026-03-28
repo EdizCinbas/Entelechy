@@ -31,12 +31,11 @@ interface Popup {
   y: number
 }
 
+// Centers computed from field centroids in almond_fields_2024.csv / wheat_fields_2024.csv
 const POINTS: GlobePoint[] = [
-  { id: 'california', label: 'California', lat: 36.7,  lng: -119.4 },
-  { id: 'kansas',     label: 'Kansas',     lat: 38.5,  lng: -98.0  },
-  { id: 'ukraine',    label: 'Ukraine',    lat: 49.0,  lng: 32.0   },
-  { id: 'india',      label: 'India',      lat: 20.0,  lng: 78.9   },
-  { id: 'australia',  label: 'Australia',  lat: -25.0, lng: 133.0  },
+  { id: 'california',  label: 'California Almonds', lat: 36.5,  lng: -119.9 },
+  { id: 'kansas',      label: 'Kansas Wheat',       lat: 37.7,  lng: -98.3  },
+  { id: 'northdakota', label: 'North Dakota Wheat', lat: 48.8,  lng: -99.9  },
 ]
 
 const CLOUD_URL     = '/earth-clouds.jpg'
