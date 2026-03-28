@@ -1,5 +1,5 @@
 # Project Entelechy: 
- We are trying to build a glass ball to better predict WEAT prices. The project aims to source varying datapoints that affects WEAT yield and use the data to make trading desicions on the WEAT ETF. There are two main components the piece the project together: The Dashboard and the backend Algorithm that decides buys and sells.
+ We are trying to build a glass ball to better predict WEAT prices. The project aims to source varying datapoints that affects WEAT yield and use the data to make trading desicions on the WEAT ETF. There are two main components the piece the project together: the Dashboard and the backend Algorithm that decides buys and sells.
 
  ### Dashboard
 The dashboard is a visualiser to support the stakeholders with the complex datapipelines being used to make long/short decisions. There is an interactable globe to illustrate key data regarding certain regions that are large producers of WEAT. To complement this design, there is a charts component on the left-panel to further highlight notable features that are used to decide long/short positions in WEAT. We have integrated many types of data ranging from:
