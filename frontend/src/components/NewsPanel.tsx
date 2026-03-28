@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface Article {
   title: string
@@ -7,33 +7,32 @@ interface Article {
 }
 
 interface NewsPanelProps {
-  queries?: string[]
   pageSize?: number
 }
 
-export default function NewsPanel({ queries = [
-  'wheat supply shortage',
-  'wheat harvest forecast',
-  'wheat futures prices',
-  'wheat export ban',
-  'wheat drought yield',
-], pageSize = 5 }: NewsPanelProps) {
-  const SORT_OPTIONS = [
-    { label: 'Latest',     value: 'publishedAt' },
-    { label: 'Popular',    value: 'popularity' },
-    { label: 'Relevant',   value: 'relevancy' },
-  ]
+const SORT_OPTIONS = [
+  { label: 'Latest',   value: 'publishedAt' },
+  { label: 'Popular',  value: 'popularity' },
+  { label: 'Relevant', value: 'relevancy' },
+]
 
+const DEFAULT_QUERY = 'wheat supply shortage OR wheat harvest forecast OR wheat futures prices OR wheat export ban OR wheat drought yield'
+
+export default function NewsPanel({ pageSize = 5 }: NewsPanelProps) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [sortBy, setSortBy] = useState('publishedAt')
+  const [input, setInput] = useState('')
+  const [activeQuery, setActiveQuery] = useState(DEFAULT_QUERY)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     setPage(0)
-    const q = encodeURIComponent(queries.join(' OR '))
+    const q = encodeURIComponent(activeQuery)
     fetch(`http://localhost:8000/api/news?crop=${q}&limit=30&sort_by=${sortBy}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -42,13 +41,20 @@ export default function NewsPanel({ queries = [
       .then(setArticles)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [sortBy])
+  }, [sortBy, activeQuery])
+
+  function handleSearch() {
+    const trimmed = input.trim()
+    if (trimmed) setActiveQuery(trimmed)
+  }
 
   const totalPages = Math.ceil(articles.length / pageSize)
   const visible = articles.slice(page * pageSize, page * pageSize + pageSize)
 
   return (
     <aside className="panel panel--news" style={{ display: 'flex', flexDirection: 'column' }}>
+
+      {/* header row */}
       <div className="panel__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="panel__title">News Feed</span>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -73,12 +79,57 @@ export default function NewsPanel({ queries = [
         </div>
       </div>
 
+      {/* search bar */}
+      <div style={{
+        display: 'flex',
+        gap: 6,
+        padding: '8px 12px',
+        borderBottom: '1px solid #1e2330',
+        background: '#0d1017',
+      }}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          placeholder="Search commodity news…"
+          style={{
+            flex: 1,
+            background: '#0a0c10',
+            border: '1px solid #1e2330',
+            borderRadius: 3,
+            color: '#c8d0e0',
+            fontSize: 11,
+            padding: '5px 10px',
+            outline: 'none',
+          }}
+        />
+        <button
+          onClick={handleSearch}
+          style={{
+            background: '#1a2540',
+            border: '1px solid #4a9eff',
+            color: '#4a9eff',
+            borderRadius: 3,
+            padding: '4px 12px',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+        >
+          Go
+        </button>
+      </div>
+
+      {/* articles */}
       <div className="panel__body" style={{ flex: 1, overflowY: 'auto', padding: 0 }}>
         {loading && (
           <p style={{ color: '#4a5568', fontSize: 12, textAlign: 'center', padding: 16 }}>Loading…</p>
         )}
         {error && (
           <p style={{ color: '#e05', fontSize: 12, textAlign: 'center', padding: 16 }}>Error: {error}</p>
+        )}
+        {!loading && !error && visible.length === 0 && (
+          <p style={{ color: '#4a5568', fontSize: 12, textAlign: 'center', padding: 16 }}>No results.</p>
         )}
         {!loading && !error && visible.map((a, i) => (
           <a
@@ -105,6 +156,7 @@ export default function NewsPanel({ queries = [
         ))}
       </div>
 
+      {/* pagination */}
       {!loading && !error && totalPages > 1 && (
         <div style={{
           display: 'flex',
@@ -129,9 +181,7 @@ export default function NewsPanel({ queries = [
           >
             ‹ Prev
           </button>
-          <span style={{ fontSize: 11, color: '#4a5568' }}>
-            {page + 1} / {totalPages}
-          </span>
+          <span style={{ fontSize: 11, color: '#4a5568' }}>{page + 1} / {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
