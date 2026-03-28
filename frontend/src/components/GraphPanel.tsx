@@ -13,7 +13,13 @@ const SENTIMENT_COLOUR = {
   negative: '#e74c3c',
 }
 
-export default function GraphPanel({ activeQuery }: { activeQuery: string }) {
+interface GraphPanelProps {
+  activeQuery: string
+  collapsed: boolean
+  onToggle: () => void
+}
+
+export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPanelProps) {
   const [sentiment, setSentiment] = useState<SentimentResult | null>(null)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
@@ -31,73 +37,68 @@ export default function GraphPanel({ activeQuery }: { activeQuery: string }) {
   }, [activeQuery])
 
   return (
-    <aside className="panel panel--graph" style={{ display: 'flex', flexDirection: 'column' }}>
-      <div className="panel__header">
-        <span className="panel__title">Chart</span>
-      </div>
+    <aside className={`panel panel--graph${collapsed ? ' panel--collapsed' : ''}`}>
 
-      {/* upper half — chart placeholder */}
-      <div className="panel__body panel__body--empty" style={{ flex: 1 }}>
-        {/* graph goes here */}
-      </div>
-
-      {/* lower half — sentiment subbox */}
-      <div style={{
-        margin: '0 12px 12px',
-        padding: '12px 14px',
-        background: 'rgba(13, 16, 23, 0.6)',
-        border: '1px solid rgba(30, 35, 48, 0.8)',
-        borderRadius: 4,
-      }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 10 }}>
-          Sentiment
+      {/* Inner content — hidden when collapsed (overflow: hidden on panel) */}
+      <div className="panel__content">
+        <div className="panel__header">
+          <span className="panel__title">Chart</span>
         </div>
 
-        {loading && (
-          <p style={{ fontSize: 11, color: '#4a5568', margin: 0 }}>Analysing…</p>
-        )}
-        {error && (
-          <p style={{ fontSize: 11, color: '#e05', margin: 0 }}>Error: {error}</p>
-        )}
-        {sentiment && !loading && (() => {
-          const colour = SENTIMENT_COLOUR[sentiment.sentiment]
-          const pct    = Math.round(Math.abs(sentiment.score) * 100)
-          return (
-            <>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color: colour, letterSpacing: '0.04em' }}>
-                  {sentiment.sentiment.toUpperCase()}
-                </span>
-                <span style={{ fontSize: 13, color: colour, opacity: 0.8 }}>
-                  {sentiment.score >= 0 ? '+' : ''}{sentiment.score.toFixed(3)}
-                </span>
-              </div>
+        <div className="panel__body panel__body--empty" style={{ flex: 1 }}>
+          {/* graph goes here */}
+        </div>
 
-              {/* score bar — centre = 0, left = negative, right = positive */}
-              <div style={{ height: 4, background: 'rgba(30,35,48,0.8)', borderRadius: 2, marginBottom: 8, position: 'relative' }}>
-                {/* centre marker */}
-                <div style={{ position: 'absolute', left: '50%', top: 0, width: 1, height: '100%', background: 'rgba(255,255,255,0.15)' }} />
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  width: `${pct / 2}%`,
-                  ...(sentiment.score >= 0
-                    ? { left: '50%' }
-                    : { right: '50%' }),
-                  background: colour,
-                  borderRadius: 2,
-                  transition: 'width 0.4s ease',
-                }} />
-              </div>
+        <div style={{
+          margin: '0 12px 12px',
+          padding: '12px 14px',
+          background: 'rgba(13, 16, 23, 0.6)',
+          border: '1px solid rgba(30, 35, 48, 0.8)',
+          borderRadius: 4,
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 10 }}>
+            Sentiment
+          </div>
 
-              <div style={{ fontSize: 10, color: '#4a5568' }}>
-                {sentiment.articles_analysed} articles · <span style={{ color: '#636e72' }}>{sentiment.crop}</span>
-              </div>
-            </>
-          )
-        })()}
+          {loading && <p style={{ fontSize: 11, color: '#4a5568', margin: 0 }}>Analysing…</p>}
+          {error   && <p style={{ fontSize: 11, color: '#e05',    margin: 0 }}>Error: {error}</p>}
+          {sentiment && !loading && (() => {
+            const colour = SENTIMENT_COLOUR[sentiment.sentiment]
+            const pct    = Math.round(Math.abs(sentiment.score) * 100)
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: colour, letterSpacing: '0.04em' }}>
+                    {sentiment.sentiment.toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 13, color: colour, opacity: 0.8 }}>
+                    {sentiment.score >= 0 ? '+' : ''}{sentiment.score.toFixed(3)}
+                  </span>
+                </div>
+                <div style={{ height: 4, background: 'rgba(30,35,48,0.8)', borderRadius: 2, marginBottom: 8, position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: '50%', top: 0, width: 1, height: '100%', background: 'rgba(255,255,255,0.15)' }} />
+                  <div style={{
+                    position: 'absolute', top: 0, height: '100%',
+                    width: `${pct / 2}%`,
+                    ...(sentiment.score >= 0 ? { left: '50%' } : { right: '50%' }),
+                    background: colour, borderRadius: 2, transition: 'width 0.4s ease',
+                  }} />
+                </div>
+                <div style={{ fontSize: 10, color: '#4a5568' }}>
+                  {sentiment.articles_analysed} articles · <span style={{ color: '#636e72' }}>{sentiment.crop}</span>
+                </div>
+              </>
+            )
+          })()}
+        </div>
       </div>
+
+      {/* Collapse strip — right (inner) edge */}
+      <div className="panel__collapse-strip" onClick={onToggle} title={collapsed ? 'Expand' : 'Collapse'}>
+        {collapsed ? '›' : '‹'}
+      </div>
+
     </aside>
   )
 }
