@@ -251,6 +251,32 @@
   background: rgba(30, 58, 95, 0.6);
 }
 
+.globe-et0-btn {
+  background: rgba(10, 14, 20, 0.85);
+  border: 1px solid #7a4a2a;
+  border-radius: 3px;
+  color: #e8855a;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  cursor: pointer;
+  z-index: 1001;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.globe-et0-btn:hover {
+  background: rgba(232, 133, 90, 0.12);
+  border-color: #e8855a;
+}
+
+.globe-popup__card--left {
+  border-color: #5a3a1f;
+  box-shadow: 0 0 24px rgba(232, 133, 90, 0.08), 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
 /* ── Soil Moisture ───────────────────────────────────────── */
 
 .soil-section {
@@ -398,4 +424,44 @@
   letter-spacing: 0.06em;
   padding-top: 4px;
   border-top: 1px solid rgba(30, 35, 48, 0.5);
+}
+
+/* ── Collapsible chart sections ──────────────────────────── */
+
+.chart-section {
+  border-bottom: 1px solid rgba(30, 35, 48, 0.5);
+}
+
+.chart-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.chart-section__header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chart-section__title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a7a9a;
+}
+
+.chart-section__chevron {
+  font-size: 8px;
+}
+
+.chart-section__body {
+  padding: 0 12px 10px;
 }

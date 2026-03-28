@@ -13,7 +13,7 @@ const SENTIMENT_COLOUR = {
   negative: '#e74c3c',
 }
 
-// ── Soil moisture ────────────────────────────────────────
+// ── Shared regions ───────────────────────────────────────
 
 interface Region {
   id: string
@@ -28,6 +28,27 @@ const REGIONS: Region[] = [
   { id: 'northdakota', label: 'N. Dakota',   lat: 48.8, lng: -99.9  },
 ]
 
+// ── Collapsible section wrapper ──────────────────────────
+
+function Section({ title, accent = '#4a9eff', children }: { title: string; accent?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="chart-section">
+      <button
+        className="chart-section__header"
+        onClick={() => setOpen(v => !v)}
+        style={{ borderLeftColor: accent }}
+      >
+        <span className="chart-section__title">{title}</span>
+        <span className="chart-section__chevron" style={{ color: accent }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && <div className="chart-section__body">{children}</div>}
+    </div>
+  )
+}
+
+// ── Soil Moisture ────────────────────────────────────────
+
 type Depth = '0_to_1cm' | '1_to_3cm' | '3_to_9cm' | '9_to_27cm'
 
 const DEPTH_LABELS: Record<Depth, string> = {
@@ -37,10 +58,8 @@ const DEPTH_LABELS: Record<Depth, string> = {
   '9_to_27cm': '9–27 cm',
 }
 
-interface SoilRow {
-  date: string
-  value: number
-}
+interface SoilRow { date: string; value: number }
+type RegionData = { rows: SoilRow[]; loading: boolean }
 
 function fetchSoil(lat: number, lng: number, depth: Depth): Promise<SoilRow[]> {
   const variable = `soil_moisture_${depth}`
@@ -66,7 +85,7 @@ function fetchSoil(lat: number, lng: number, depth: Depth): Promise<SoilRow[]> {
     })
 }
 
-function Sparkline({ rows, color }: { rows: SoilRow[]; color: string }) {
+function SoilSparkline({ rows, color }: { rows: SoilRow[]; color: string }) {
   const W = 72, H = 24
   const vals  = rows.map(r => r.value)
   const min   = Math.min(...vals)
@@ -76,7 +95,6 @@ function Sparkline({ rows, color }: { rows: SoilRow[]; color: string }) {
   const yS = (v: number) => H - 2 - ((v - min) / range) * (H - 4)
   const pts  = rows.map((r, i) => `${xS(i)},${yS(r.value)}`).join(' ')
   const last = rows[rows.length - 1]
-
   return (
     <svg width={W} height={H} style={{ display: 'block', flexShrink: 0 }}>
       <polygon points={`0,${H} ${pts} ${W},${H}`} fill={`${color}18`} />
@@ -85,8 +103,6 @@ function Sparkline({ rows, color }: { rows: SoilRow[]; color: string }) {
     </svg>
   )
 }
-
-type RegionData = { rows: SoilRow[]; loading: boolean }
 
 function SoilMoistureSection() {
   const [depth,    setDepth]    = useState<Depth>('0_to_1cm')
@@ -108,27 +124,20 @@ function SoilMoistureSection() {
 
   useEffect(() => { load(depth) }, [depth, load])
 
-  const moistureColor = (v: number) => {
-    if (v < 0.15) return '#c8a96e'
-    if (v < 0.30) return '#4a9eff'
-    return '#2ecc71'
-  }
+  const moistureColor = (v: number) => v < 0.15 ? '#c8a96e' : v < 0.30 ? '#4a9eff' : '#2ecc71'
 
   return (
-    <div className="soil-section">
-      <div className="soil-section__header">
-        <span className="panel__title">Soil Moisture</span>
-        <div className="soil-depth-tabs">
-          {(Object.keys(DEPTH_LABELS) as Depth[]).map(d => (
-            <button
-              key={d}
-              className={`soil-depth-tab${depth === d ? ' soil-depth-tab--active' : ''}`}
-              onClick={() => setDepth(d)}
-            >
-              {DEPTH_LABELS[d]}
-            </button>
-          ))}
-        </div>
+    <>
+      <div className="soil-depth-tabs" style={{ marginBottom: 6 }}>
+        {(Object.keys(DEPTH_LABELS) as Depth[]).map(d => (
+          <button
+            key={d}
+            className={`soil-depth-tab${depth === d ? ' soil-depth-tab--active' : ''}`}
+            onClick={() => setDepth(d)}
+          >
+            {DEPTH_LABELS[d]}
+          </button>
+        ))}
       </div>
 
       <div className="soil-rows">
@@ -147,23 +156,16 @@ function SoilMoistureSection() {
             >
               <div className="soil-row__summary">
                 <div className="soil-row__label">{region.label}</div>
-
                 {rd?.loading && <div className="soil-row__loading">·</div>}
-
                 {!rd?.loading && rows.length > 0 && (
                   <>
-                    <Sparkline rows={rows} color={color} />
+                    <SoilSparkline rows={rows} color={color} />
                     <div className="soil-row__val" style={{ color }}>
-                      {last.value.toFixed(3)}
-                      <span className="soil-row__unit"> m³/m³</span>
+                      {last.value.toFixed(3)}<span className="soil-row__unit"> m³/m³</span>
                     </div>
                   </>
                 )}
-
-                {!rd?.loading && rows.length === 0 && (
-                  <div className="soil-row__loading">n/a</div>
-                )}
-
+                {!rd?.loading && rows.length === 0 && <div className="soil-row__loading">n/a</div>}
                 <span className="soil-row__chevron">{isOpen ? '▲' : '▼'}</span>
               </div>
 
@@ -182,9 +184,7 @@ function SoilMoistureSection() {
                         <>
                           <polygon points={`0,48 ${pts} 200,48`} fill={`${color}18`} />
                           <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-                          {rows.map((r, i) => (
-                            <circle key={i} cx={xS(i)} cy={yS(r.value)} r={2.5} fill={color} />
-                          ))}
+                          {rows.map((r, i) => <circle key={i} cx={xS(i)} cy={yS(r.value)} r={2.5} fill={color} />)}
                         </>
                       )
                     })()}
@@ -208,7 +208,140 @@ function SoilMoistureSection() {
         <span style={{ color: '#c8a96e' }}>● dry</span>
         <span style={{ color: '#4a9eff' }}>● moist</span>
         <span style={{ color: '#2ecc71' }}>● wet</span>
-        <span style={{ color: '#4a5568', marginLeft: 'auto' }}>7-day forecast</span>
+        <span style={{ color: '#4a5568', marginLeft: 'auto' }}>7-day</span>
+      </div>
+    </>
+  )
+}
+
+// ── Drought Index (ET0) ──────────────────────────────────
+
+interface ET0Row { date: string; et0: number }
+type ET0RegionData = { rows: ET0Row[]; loading: boolean }
+
+function fetchET0(lat: number, lng: number): Promise<ET0Row[]> {
+  return fetch(
+    `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${lat}&longitude=${lng}` +
+    `&daily=et0_fao_evapotranspiration&forecast_days=14&timezone=auto`
+  )
+    .then(r => r.json())
+    .then(data => {
+      const dates  = data?.daily?.time                       ?? []
+      const values = data?.daily?.et0_fao_evapotranspiration ?? []
+      return dates.map((d: string, i: number) => ({ date: d, et0: values[i] ?? 0 }))
+    })
+}
+
+function ET0Sparkline({ rows, color }: { rows: ET0Row[]; color: string }) {
+  const W = 72, H = 24
+  const vals  = rows.map(r => r.et0)
+  const min   = 0
+  const max   = Math.max(...vals, 1)
+  const range = max - min
+  const xS = (i: number) => (i / (rows.length - 1)) * W
+  const yS = (v: number) => H - 2 - ((v - min) / range) * (H - 4)
+  const pts  = rows.map((r, i) => `${xS(i)},${yS(r.et0)}`).join(' ')
+  const last = rows[rows.length - 1]
+  return (
+    <svg width={W} height={H} style={{ display: 'block', flexShrink: 0 }}>
+      <polygon points={`0,${H} ${pts} ${W},${H}`} fill={`${color}18`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
+      <circle cx={xS(rows.length - 1)} cy={yS(last.et0)} r={2} fill={color} />
+    </svg>
+  )
+}
+
+function DroughtSection() {
+  const [data,     setData]     = useState<Record<string, ET0RegionData>>({})
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  useEffect(() => {
+    setData(prev => {
+      const next: Record<string, ET0RegionData> = {}
+      REGIONS.forEach(r => { next[r.id] = { rows: prev[r.id]?.rows ?? [], loading: true } })
+      return next
+    })
+    REGIONS.forEach(region => {
+      fetchET0(region.lat, region.lng)
+        .then(rows => setData(prev => ({ ...prev, [region.id]: { rows, loading: false } })))
+        .catch(()  => setData(prev => ({ ...prev, [region.id]: { rows: [], loading: false } })))
+    })
+  }, [])
+
+  // colour: low ET0 = blue (cool/wet), high = orange (dry/hot)
+  const et0Color = (v: number, max: number) =>
+    v > max * 0.7 ? '#e8855a' : v > max * 0.4 ? '#c8a96e' : '#4a9eff'
+
+  return (
+    <div className="soil-rows">
+      {REGIONS.map(region => {
+        const rd     = data[region.id]
+        const rows   = rd?.rows ?? []
+        const last   = rows[rows.length - 1]
+        const maxVal = Math.max(...rows.map(r => r.et0), 1)
+        const color  = last ? et0Color(last.et0, maxVal) : '#4a5568'
+        const isOpen = expanded === region.id
+
+        return (
+          <div
+            key={region.id}
+            className={`soil-row${isOpen ? ' soil-row--open' : ''}`}
+            onClick={() => setExpanded(isOpen ? null : region.id)}
+          >
+            <div className="soil-row__summary">
+              <div className="soil-row__label">{region.label}</div>
+              {rd?.loading && <div className="soil-row__loading">·</div>}
+              {!rd?.loading && rows.length > 0 && (
+                <>
+                  <ET0Sparkline rows={rows} color={color} />
+                  <div className="soil-row__val" style={{ color }}>
+                    {last.et0.toFixed(1)}<span className="soil-row__unit"> mm</span>
+                  </div>
+                </>
+              )}
+              {!rd?.loading && rows.length === 0 && <div className="soil-row__loading">n/a</div>}
+              <span className="soil-row__chevron">{isOpen ? '▲' : '▼'}</span>
+            </div>
+
+            {isOpen && rows.length > 0 && (
+              <div className="soil-row__detail">
+                <svg width="100%" viewBox="0 0 200 56" preserveAspectRatio="none" style={{ display: 'block', height: 56 }}>
+                  {(() => {
+                    const vals  = rows.map(r => r.et0)
+                    const min   = 0
+                    const max   = Math.max(...vals, 1)
+                    const range = max - min
+                    const xS = (i: number) => (i / (rows.length - 1)) * 200
+                    const yS = (v: number) => 48 - ((v - min) / range) * 42
+                    const pts = rows.map((r, i) => `${xS(i)},${yS(r.et0)}`).join(' ')
+                    return (
+                      <>
+                        <polygon points={`0,48 ${pts} 200,48`} fill={`${color}18`} />
+                        <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+                        {rows.map((r, i) => <circle key={i} cx={xS(i)} cy={yS(r.et0)} r={2.5} fill={et0Color(r.et0, max)} />)}
+                      </>
+                    )
+                  })()}
+                </svg>
+                <div className="soil-row__days">
+                  {rows.filter((_, i) => i % 2 === 0).map((r, i) => (
+                    <div key={i} className="soil-row__day">
+                      <span className="soil-row__day-date">{r.date.slice(5)}</span>
+                      <span className="soil-row__day-val" style={{ color: et0Color(r.et0, maxVal) }}>{r.et0.toFixed(1)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      <div className="soil-section__legend">
+        <span style={{ color: '#4a9eff' }}>● low</span>
+        <span style={{ color: '#c8a96e' }}>● moderate</span>
+        <span style={{ color: '#e8855a' }}>● high stress</span>
+        <span style={{ color: '#4a5568', marginLeft: 'auto' }}>14-day</span>
       </div>
     </div>
   )
@@ -224,8 +357,8 @@ interface GraphPanelProps {
 
 export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPanelProps) {
   const [sentiment, setSentiment] = useState<SentimentResult | null>(null)
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState<string | null>(null)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -243,22 +376,28 @@ export default function GraphPanel({ activeQuery, collapsed, onToggle }: GraphPa
     <aside className={`panel panel--graph${collapsed ? ' panel--collapsed' : ''}`}>
 
       <div className="panel__content">
-        <div className="panel__body" style={{ flex: 1 }}>
-          <SoilMoistureSection />
+        <div className="panel__body" style={{ flex: 1, overflowY: 'auto' }}>
+
+          <Section title="Soil Moisture" accent="#4a9eff">
+            <SoilMoistureSection />
+          </Section>
+
+          <Section title="Drought Index · ET₀" accent="#e8855a">
+            <DroughtSection />
+          </Section>
+
         </div>
 
+        {/* Sentiment */}
         <div style={{
-          margin: '0 12px 12px',
-          padding: '12px 14px',
+          margin: '0 12px 12px', padding: '12px 14px',
           background: 'rgba(13, 16, 23, 0.6)',
           border: '1px solid rgba(30, 35, 48, 0.8)',
-          borderRadius: 4,
-          flexShrink: 0,
+          borderRadius: 4, flexShrink: 0,
         }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 10 }}>
             Sentiment
           </div>
-
           {loading && <p style={{ fontSize: 11, color: '#4a5568', margin: 0 }}>Analysing…</p>}
           {error   && <p style={{ fontSize: 11, color: '#e05',    margin: 0 }}>Error: {error}</p>}
           {sentiment && !loading && (() => {

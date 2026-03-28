@@ -20,7 +20,7 @@ const SORT_OPTIONS = [
   { label: 'Relevant', value: 'relevancy'   },
 ]
 
-export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onToggle, pageSize = 5 }: NewsPanelProps) {
+export default function NewsPanel({ activeQuery, onQueryChange, collapsed, onToggle, pageSize = 15 }: NewsPanelProps) {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)

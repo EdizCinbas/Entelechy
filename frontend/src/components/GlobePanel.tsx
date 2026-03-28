@@ -132,9 +132,8 @@ export default function GlobePanel() {
   const [globeReady,  setGlobeReady] = useState(false)
   const [weather,     setWeather]    = useState<WeatherData | null>(null)
   const [wxLoading,   setWxLoading]  = useState(false)
-  const [flood,       setFlood]      = useState<FloodDay[] | null>(null)
+  const [flood,        setFlood]       = useState<FloodDay[] | null>(null)
   const [floodLoading, setFloodLoading] = useState(false)
-
   // Cloud layer
   useEffect(() => {
     const globe = globeRef.current
@@ -298,6 +297,7 @@ export default function GlobePanel() {
               transform: 'translate(-50%, -50%)',
             }}
           />
+
         </>,
         document.body
       )}
