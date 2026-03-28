@@ -1,7 +1,7 @@
 # Entelechy Development Log
 
 ## Project Overview
-Entelechy is an analytical dashboard and data engine for agricultural data. The main idea was to use satellite imagery to predict crop yields, but we have extended it with all sorts of agriculture relevant data. The project is a baseline for building commodity algorithms, and we have made a wheat algorithm using the engine as demonstration of its use case, with almost 170% return.
+Entelechy is an analytical dashboard and data engine for agricultural data. The main idea was to use satellite imagery to predict crop yields, but we have extended it with all sorts of agriculture relevant data. The project is a baseline for building commodity algorithms, and we have made a wheat algorithm using the engine as demonstration of its use case, with almost 70% return.
 
 The stack is a Python backend with a React frontend to deliver environmental analysis. The backend executes geospatial imagery extraction, news sentiment scoring, and uses that in algorithmic strategies that return well above the buy and hold benchmark. 
 
